@@ -1,3 +1,31 @@
+import os
+from statsmodels.stats.multitest import multipletests
+from scipy.stats import f_oneway as anova
+import scipy
+from scipy.stats import t
+import plotly.express as px
+from pathlib import Path
+  
+# from select import select
+import numpy as np
+import pandas as pd
+
+import plotly.graph_objs as go
+# from plotly.offline import plot
+# import plotly.io as pio
+# from plotly.offline import iplot
+# import plotly as py
+from matplotlib_venn import venn2, venn3
+import matplotlib.pyplot as plt
+# import matplotlib
+# import plotly.colors
+import plotly.express as px
+# from plotly.subplots import make_subplots
+
+
+from SCP_processor import *
+
+
 class SCP_plotter:
     def ID_plots(data_object, plot_options, saved_settings, username=None):
         """_Prepare data for creating protein peptide identification bar
