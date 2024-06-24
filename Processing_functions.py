@@ -814,3 +814,199 @@ def NormalizeToMedian(abundance_data, apply_log2=False):
     abundance_data = abundance_data.replace([np.inf, -np.inf], 0)
 
     return abundance_data
+
+def calculate_cvs(abundance_data):
+    """_Calculate mean, stdev, cv for withn each protein/peptide abundance_
+
+    Args:
+        data_object (_type_): _full data frame_
+
+    Returns:
+        _type_: _df with Symbol mean, stdev, cv for each protein/peptide_
+    """
+    if 'Symbol' in abundance_data.columns:
+        name = "Symbol"
+    if 'Annotated Sequence' in abundance_data.columns:
+        name = "Annotated Sequence"
+    abundance_data = abundance_data.assign(
+        intensity=abundance_data.loc[:, ~abundance_data.columns.str.contains(
+            name)].mean(axis=1, skipna=True),
+        stdev=abundance_data.loc[:, ~abundance_data.columns.str.contains(
+            name)].std(axis=1, skipna=True),
+        CV=abundance_data.loc[:, ~abundance_data.columns.str.contains(name)].std(
+            axis=1, skipna=True) / abundance_data.loc[
+            :, ~abundance_data.columns.str.contains(name)].mean(
+            axis=1, skipna=True) * 100)
+
+    abundance_data = abundance_data.loc[:, [
+            name, "intensity", "stdev", "CV"]]
+    
+    return abundance_data
+
+
+def t_test_from_summary_stats(m1, m2, n1, n2, s1, s2, equal_var=False):
+    """_Calculate T-test from summary using ttest_ind_from_stats from
+    scipy.stats package_
+
+    Args:
+        m1 (_type_): _mean list of sample 1_
+        m2 (_type_): mean list of sample 2_
+        n1 (_type_): sample size list of sample 1_
+        n2 (_type_): sample size list of sample 2_
+        s1 (_type_): standard deviation list of sample 1_
+        s2 (_type_): standard deviation list of sample 2_
+        equal_var (_type_, optional): False would perform Welch's
+        t-test, while set it to True would perform Student's t-test. Defaults
+        to False.
+
+    Returns:
+        _type_: _list of P values_
+    """
+
+    p_values = []
+    for i in range(len(m1)):
+        _, benjamini = ttest_ind_from_stats(
+            m1[i], s1[i], n1[i], m2[i], s2[i], n2[i], equal_var=equal_var)
+        p_values.append(benjamini)
+
+    return p_values
+
+def impute_knn(abundance_data, k=5):
+    """_inpute missing value from neighbor values_
+
+    Args:
+        abundance_data (_type_): _description_
+        k (int, optional): _number of neighbors used_. Defaults to 5.
+    Returns:
+        _type_: _description_
+        TODO: this knn imputer produces slightly different results (about 4%)
+        from the one in R. Need to figure out why
+    """
+    name = abundance_data.columns[0]
+
+    names = abundance_data[name]
+    # x = abundance_data.select_dtypes(include=['float64', 'int64'])
+    # imputer = KNNImputer(n_neighbors=k)
+    # x_imputed = pd.DataFrame(imputer.fit_transform(x), columns=x.columns)
+
+
+    x = abundance_data.select_dtypes(include=['float', 'int'])
+    imputer = KNNImputer(n_neighbors=k)
+    x_imputed = imputer.fit_transform(x)
+    x_imputed = pd.DataFrame(x_imputed, columns=x.columns)
+
+
+
+    abundance_data.loc[:, x.columns] = x_imputed.values
+    abundance_data[name] = names
+    return abundance_data
+
+
+def CalculatePCA(abundance_object, infotib,log2T = False):
+    """_inpute PCA transformed and variance explained by each principal
+    component_
+    """
+    name = abundance_object.columns[0]
+    x = abundance_object
+    
+    sampleNames = x.columns[~x.columns.str.contains(
+        name)].to_frame(index=False)
+
+    if log2T: #apply log2 transformation
+        x = np.log2(x.loc[:, ~x.columns.str.contains(name)].T.values)
+    else:
+        x = x.loc[:, ~x.columns.str.contains(name)].T.values
+    # filter out columns with all zeros
+    is_finite_col = np.isfinite(np.sum(x, axis=0))
+    x_filtered = x[:, is_finite_col]
+
+    
+    # Instantiate PCA    
+    pca = PCA()
+    #
+    # Determine transformed features
+    #
+    x_pca = pca.fit_transform(x_filtered)
+    #
+    # Determine explained variance using explained_variance_ration_ attribute
+    #
+    exp_var_pca = pca.explained_variance_ratio_
+    #
+    # Cumulative sum of eigenvalues; This will be used to create step plot
+    # for visualizing the variance explained by each principal component.
+    #
+    cum_sum_eigenvalues = np.cumsum(exp_var_pca)
+    #
+    # convert numpy array to pandas dataframe for plotting
+    
+    pca_panda = pd.DataFrame(x_pca, columns=[
+        'PC' + str(i+1) for i in range(x_pca.shape[1])])
+    # add sample names to the dataframe
+    pca_panda = pd.concat(
+        [infotib, pca_panda], axis=1, join='inner')
+    
+    return pca_panda, exp_var_pca
+
+
+def filter_by_name(data_dict, runname_list):
+    """_Filter the data_dict based on runname_list, only keep the columns
+    of the data_dict that are in the runname_list_
+    Args:
+
+    Returns:
+        _type_: _description_
+    """
+
+    # make dict for each runname, no Symbol/sequence
+    nameDict = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Run Identifier"]))
+    
+    identifier_list = []
+    
+    identifier_list_plus = []
+    if "Annotated Sequence" in runname_list:
+        runname_list.remove("Annotated Sequence")
+    if "Symbol" in runname_list:
+        runname_list.remove("Symbol")
+    for eachName in runname_list:
+        identifier_list.append(nameDict[eachName])
+
+    for eachName in runname_list:
+        identifier_list_plus.append(nameDict[eachName])
+
+
+    filtered_data = {}
+   # filtered_data["meta"] = data_dict["meta"]
+    runname_list.extend(["Annotated Sequence","Symbol"])
+    identifier_list_plus.extend(["Annotated Sequence","Symbol"])
+
+    #filtered_data["run_metadata"] = [item for item in data_dict[
+    #   "run_metadata"] if item in runname_list]
+    
+    filtered_data["run_metadata"] = data_dict["run_metadata"][
+        data_dict["run_metadata"]["Run Names"].isin(
+            runname_list)]  
+    filtered_data["protein_abundance"] = data_dict["protein_abundance"][[
+        col for col in data_dict["protein_abundance"].columns if any(
+            word == col for word in identifier_list_plus)]]
+    filtered_data["peptide_abundance"] = data_dict["peptide_abundance"][[
+        col for col in data_dict["peptide_abundance"].columns if any(
+            word == col for word in identifier_list_plus)]]
+    filtered_data["protein_other_info"] = data_dict["protein_other_info"][[
+        col for col in data_dict["protein_other_info"].columns if any(
+            word == col for word in identifier_list_plus)]]
+    filtered_data["peptide_other_info"] = data_dict["peptide_other_info"][[
+        col for col in data_dict["peptide_other_info"].columns if any(
+            word == col for word in identifier_list_plus)]]
+    filtered_data["protein_ID_matrix"] = data_dict["protein_ID_matrix"][[
+        col for col in data_dict["protein_ID_matrix"].columns if any(
+            word == col for word in identifier_list_plus)]]
+    filtered_data["peptide_ID_matrix"] = data_dict["peptide_ID_matrix"][[
+        col for col in data_dict["peptide_ID_matrix"].columns if any(
+            word == col for word in identifier_list_plus)]]
+    filtered_data["protein_ID_Summary"] = data_dict["protein_ID_Summary"][
+        data_dict["protein_ID_Summary"]["names"].isin(
+            identifier_list)]
+    filtered_data["peptide_ID_Summary"] = data_dict["peptide_ID_Summary"][
+        data_dict["peptide_ID_Summary"]["names"].isin(
+            identifier_list)]
+    return filtered_data
