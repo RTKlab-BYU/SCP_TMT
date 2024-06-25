@@ -8,7 +8,7 @@ from scipy.stats import ttest_ind_from_stats
 import json
 
 class SCP_processor:
-    def sumIDs(IDMatrix):
+    def sumIDs(self,IDMatrix):
         """_summarize the ID matrix infor into ID summary_
         
 
@@ -50,7 +50,7 @@ class SCP_processor:
                             'MBR_IDs': MBR_ID,
                             'Total_IDs': total_ID})
 
-    def generate_column_from_name_mapping(columns, partial_column_name_mapping):
+    def generate_column_from_name_mapping(self,columns, partial_column_name_mapping):
         #input is column names, and a dictionary with what you want each column (key) to be renamed to (value)
         column_name_mapping = {}
         for col in columns:
@@ -60,7 +60,7 @@ class SCP_processor:
                     break
         return column_name_mapping
 
-    def generate_column_to_name_mapping(columns, partial_column_name_mapping):
+    def generate_column_to_name_mapping(self,columns, partial_column_name_mapping):
         #input is column names, and a dictionary with what you want each column (key) to be renamed to (value)
         column_name_mapping = {}
         for col in columns:
@@ -72,7 +72,7 @@ class SCP_processor:
         return column_name_mapping
 
 
-    def combine_IDs(all_matrix, MS2_matrix):
+    def combine_IDs(self,all_matrix, MS2_matrix):
         # make IDs into MBR
         if "Annotated Sequence" in all_matrix.columns:
             name = "Annotated Sequence"
@@ -103,7 +103,7 @@ class SCP_processor:
 
         return all_matrix #noticed this changed
 
-    def read_file(queue_id=None, queue_info= None, processor_info = None,
+    def read_file(self,queue_id=None, queue_info= None, processor_info = None,
                 input1=None, input2=None,input3=None, input4=None, input5=None,
                 process_app = None, file_id = 1):
         """_Read data from data manager API or through local files or read directly
@@ -182,7 +182,7 @@ class SCP_processor:
 
             for item in [prot_abundance,pep_abundance,pep_ID_MS2,prot_ID_MS2]:
                 # Generate a new column name mapping using the function
-                fileid_mapping = generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
+                fileid_mapping = self.generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
                 item.rename(columns = fileid_mapping,inplace=True)
             
 
@@ -217,8 +217,8 @@ class SCP_processor:
                     pep_ID_MS2[col] = pep_ID_MS2[col].astype(str).str.replace("\d+\.\d+", "MS2", regex=True)
 
             # print(run_name_list)
-            pep_ID = combine_IDs(pep_ID, pep_ID_MS2)
-            prot_ID = combine_IDs(prot_ID, prot_ID_MS2)
+            pep_ID = self.combine_IDs(pep_ID, pep_ID_MS2)
+            prot_ID = self.combine_IDs(prot_ID, prot_ID_MS2)
 
             prot_other_info["Source_File"] = input1
             pep_other_info["Source_File"] = input2
@@ -312,28 +312,25 @@ class SCP_processor:
                             (protein_table["Potential contaminant"] != "+")]
 
             protein_table.rename(
-                columns={'# Peptides': 'number of peptides'}, inplace=True)
+                columns={'Unique peptides': 'number of peptides'}, inplace=True)
             protein_table=protein_table.query(
                 "`number of peptides` >= @min_unique_peptides")
             peptide_table= peptide_table[(peptide_table[
-                'Contaminant'] == False) & (peptide_table["Confidence"]== "High")]
+                'Potential contaminant'] == False) ]
 
             meta_table = pd.read_table(input5,low_memory=False)
-            #filter rows in meta table on File ID column if it is NaN
-            meta_table = meta_table[meta_table['File ID'].notna()]
+            #filter out last row in meta table because it is Total
+            meta_table = meta_table[:-1]
 
-            # Replace single backslashes with forward slashes in the 'file_paths' column
-            meta_table['File Name'] = meta_table['File Name'].str.replace('\\', '/', regex=False)
-            # Apply a lambda function to extract file names without extensions
-            meta_table['file_names'] = meta_table['File Name'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
-            file_path_name_dict = dict(zip(meta_table['File ID'], meta_table['file_names']))
-            run_name_list = pd.DataFrame({"Run Names": file_path_name_dict.values()})
+           
+            run_name_list = pd.DataFrame({"Run Names": meta_table["Raw file"]})
             run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
             
             #format the read in table into three different tables: abundance, id and other_info
-            prot_abundance = protein_table.filter(regex='Abundance:|Symbol')
-            prot_ID = protein_table.filter(regex='Found in Sample:|Symbol')
-            prot_other_info = protein_table.loc[:, ~protein_table.columns.str.contains('Found in Sample:|Abundance:')]
+            prot_abundance = protein_table.filter(regex='Reporter intensity |Gene names')
+            prot_abundance = prot_abundance.loc[:,~prot_abundance.columns.str.contains("Reporter intensity corrected ")]
+            prot_ID = protein_table.filter(regex='Identification type |Gene names')
+            prot_other_info = protein_table.loc[:, ~protein_table.columns.str.contains('Identification type |Reporter intensity ')]
             
 
             pep_abundance = peptide_table.filter(regex='Abundance:|Annotated Sequence')
@@ -345,28 +342,11 @@ class SCP_processor:
 
             #change column names to file/run names to our fileID
 
-            new_dict = {"Abundance: " + key + ":": value for key, value in file_path_name_dict.items()}
-            for item in [prot_abundance,pep_abundance]:
+            for item in [prot_abundance,pep_abundance,pep_ID_MS2,prot_ID_MS2]:
                 # Generate a new column name mapping using the function
-                column_name_mapping = generate_column_from_name_mapping(item.columns, new_dict)
-                #TODO solving  A value is trying to be set on a copy of a slice from a DataFrame
-                
-                item.rename(columns = column_name_mapping, inplace = True)
-                #use generate_column_to_name_mapping function because we don't want partial matches as in QC_HeLa.raw and QC_HeLa_20230727235101.raw
-                fileid_mapping = generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
+                fileid_mapping = self.generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
                 item.rename(columns = fileid_mapping,inplace=True)
             
-
-            new_dict = {"Found in Sample: " + key + ":": value for key, value in file_path_name_dict.items()}
-            for item in [pep_ID,prot_ID]:
-                # Generate a new column name mapping using the function
-                column_name_mapping = generate_column_from_name_mapping(item.columns, new_dict)
-
-                item.rename(columns = column_name_mapping, inplace = True)
-                #use generate_column_to_name_mapping function because we don't want partial matches
-                fileid_mapping = generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
-
-                item.rename(columns = fileid_mapping,inplace=True)
 
             # replace "High" to MS2 "Peak Found" to MBR, the rest become np.NaN
             replacements = {'High': 'MS2', 'Peak Found': 'MBR', "Medium": np.NaN, "Low": np.NaN, "Not Found": np.NaN}
@@ -378,13 +358,12 @@ class SCP_processor:
                     prot_ID[column] = prot_ID[column].replace(to_replace=replacements)
         
         # get ID summary by parsing ID Matrix
-        protein_ID_summary = sumIDs(prot_ID)
-        peptide_ID_summary = sumIDs(pep_ID)
+        protein_ID_summary = self.sumIDs(prot_ID)
+        peptide_ID_summary = self.sumIDs(pep_ID)
         
 
         #sets the processing app in run_name_list
         run_name_list["Processing App"] = process_app
-        run_name_list["Analysis Name"] = analysis_file
 
 
         return {'run_metadata': run_name_list,
@@ -399,7 +378,7 @@ class SCP_processor:
 
                 }  
 
-    def read_files(queue_ids = None, queue_info = None, processor_info = None, grouped_input_files = []):
+    def read_files(self,queue_ids = None, queue_info = None, processor_info = None, grouped_input_files = []):
         '''
         Creates a list of data objects
         
@@ -441,7 +420,7 @@ class SCP_processor:
                 input4= eachGroup["input4"]  
                 input5= eachGroup["input5"]
 
-            current_data_object = read_file(input1=input1,input2=input2,
+            current_data_object = self.read_file(input1=input1,input2=input2,
                                             input3=input3,input4 = input4,
                                             input5=input5, process_app=process_app,file_id = i)
             data_objects.append(current_data_object)
@@ -452,7 +431,7 @@ class SCP_processor:
         return data_objects
 
 
-    def outer_join_data_objects(data_objects):
+    def outer_join_data_objects(self,data_objects):
         '''
         Takes in a list of data objects as given by read_files and converts them to a single data object as given by read_files,
         protein info continues to show what was found on each original file, and so forth.
@@ -507,7 +486,7 @@ class SCP_processor:
                     
         return final_data_object
 
-    def calculate_missing_values_MS2(data_object,
+    def calculate_missing_values_MS2(self,data_object,
                                 missing_value_thresh=33,
                                 is_protein=True,
                                 ignore_nan=False):
@@ -566,7 +545,7 @@ class SCP_processor:
         
         return returnMatrix
 
-    def filter_by_missing_values(data_object,
+    def filter_by_missing_values(self,data_object,
                                 missing_value_thresh=33,
                                 is_protein=True,
                                 ignore_nan=False):
@@ -649,7 +628,7 @@ class SCP_processor:
         
         return data_object
 
-    def filter_by_missing_values_MS2(data_object,
+    def filter_by_missing_values_MS2(self,data_object,
                                 missing_value_thresh=33,
                                 is_protein=True,
                                 ignore_nan=False):
@@ -726,7 +705,7 @@ class SCP_processor:
         return data_object
 
 
-    def NormalizeToMedian(abundance_data, apply_log2=False):
+    def NormalizeToMedian(self,abundance_data, apply_log2=False):
         """_Normalizes each column by multiplying each value in that column with
         the median of all values in abundances (all experiments) and then dividing
         by the median of that column (experiment)._
@@ -768,7 +747,7 @@ class SCP_processor:
 
         return abundance_data
 
-    def calculate_cvs(abundance_data):
+    def calculate_cvs(self,abundance_data):
         """_Calculate mean, stdev, cv for withn each protein/peptide abundance_
 
         Args:
@@ -797,7 +776,7 @@ class SCP_processor:
         return abundance_data
 
 
-    def t_test_from_summary_stats(m1, m2, n1, n2, s1, s2, equal_var=False):
+    def t_test_from_summary_stats(self,m1, m2, n1, n2, s1, s2, equal_var=False):
         """_Calculate T-test from summary using ttest_ind_from_stats from
         scipy.stats package_
 
@@ -824,7 +803,7 @@ class SCP_processor:
 
         return p_values
 
-    def impute_knn(abundance_data, k=5):
+    def impute_knn(self,abundance_data, k=5):
         """_inpute missing value from neighbor values_
 
         Args:
@@ -855,7 +834,7 @@ class SCP_processor:
         return abundance_data
 
 
-    def CalculatePCA(abundance_object, infotib,log2T = False):
+    def CalculatePCA(self,abundance_object, infotib,log2T = False):
         """_inpute PCA transformed and variance explained by each principal
         component_
         """
@@ -901,7 +880,7 @@ class SCP_processor:
         return pca_panda, exp_var_pca
 
 
-    def filter_by_name(data_dict, runname_list):
+    def filter_by_name(self,data_dict, runname_list):
         """_Filter the data_dict based on runname_list, only keep the columns
         of the data_dict that are in the runname_list_
         Args:

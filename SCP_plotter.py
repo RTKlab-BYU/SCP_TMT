@@ -22,12 +22,18 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 # from plotly.subplots import make_subplots
 
-
-from SCP_processor import *
+import SCP_processor
 
 
 class SCP_plotter:
-    def ID_plots(data_object, plot_options, saved_settings, username=None):
+    def __init__(self, write_output = False) -> None:
+        self.write_output = write_output
+        self.app_folder = "./"
+        self.processor = SCP_processor()
+        self.url_base = None
+
+
+    def ID_plots(self, data_object, plot_options, saved_settings, username=None):
         """_Prepare data for creating protein peptide identification bar
         plot_
 
@@ -58,7 +64,7 @@ class SCP_plotter:
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
 
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] = self.processor.filter_by_name(
                 data_object,
                 runname_sublist)  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -179,13 +185,13 @@ class SCP_plotter:
                 toPlotIDs.loc[toPlotIDs["Conditions"]==eachGroup,eachCategory] = saved_settings[eachGroup][eachCategory]
         
         #display(toPlotIDs)
-        fig = plot_IDChart_plotly(toPlotIDs,
+        fig = self.plot_IDChart_plotly(toPlotIDs,
                                 username=username,
                                 plot_options=plot_options)
 
-        if WRITE_OUTPUT:    
+        if self.write_output:    
             # export the data to csv for user downloading
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             # create the directory if it does not exist
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
@@ -204,15 +210,15 @@ class SCP_plotter:
             print("Downloading links...")
 
             # create the link for downloading the data
-            CSV_link = f"/files/{url_base}/csv/" \
+            CSV_link = f"/files/{self.url_base}/csv/" \
                 f"{username}_ID_data.csv"
 
             # add SVG download link
 
-            SVG_link = f"/files/{url_base}/images/" \
+            SVG_link = f"/files/{self.url_base}/images/" \
                 f"{username}_ID_Bar_Plot.svg"
 
-            img_dir = os.path.join(APPFOLDER, "images/")
+            img_dir = os.path.join(self.app_folder, "images/")
             if not os.path.exists(img_dir):
                 Path(img_dir).mkdir(parents=True)
 
@@ -225,7 +231,7 @@ class SCP_plotter:
             SVG_link = None
         return fig, CSV_link, SVG_link
 
-    def plot_IDChart_plotly(ID_data,
+    def plot_IDChart_plotly(self, ID_data,
                             username=None,
                             plot_options=None):
         """_Plot the ID bar plot for the given data_
@@ -505,7 +511,7 @@ class SCP_plotter:
             fig.update_xaxes(categoryorder='array', categoryarray = plot_options["x_axis_order"])
         return fig
 
-    def Missing_Values_Plots(data_object, plot_options, saved_settings, username=None):
+    def Missing_Values_Plots(self, data_object, plot_options, saved_settings, username=None):
         """_Prepare data for creating protein peptide identification bar
         plot_
 
@@ -536,7 +542,7 @@ class SCP_plotter:
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
 
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] =  self.processor.filter_by_name(
                 data_object,
                 runname_sublist)  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -557,12 +563,12 @@ class SCP_plotter:
         for eachCondition in group_names:
             # Protein ID summary
             currentData = group_dict[eachCondition]
-            current = calculate_missing_values_MS2(currentData, is_protein=True)
+            current =  self.processor.calculate_missing_values_MS2(currentData, is_protein=True)
             print(current)
             current["Conditions"] = eachCondition
             allProteins = pd.concat([allProteins, current])
             # Peptide ID summary
-            current = calculate_missing_values_MS2(currentData, is_protein=False)
+            current =  self.processor.calculate_missing_values_MS2(currentData, is_protein=False)
             current["Conditions"] = eachCondition
             allPeptides = pd.concat([allPeptides, current])
 
@@ -606,14 +612,14 @@ class SCP_plotter:
                 toPlotIDs.loc[toPlotIDs["Conditions"]==eachGroup,eachCategory] = saved_settings[eachGroup][eachCategory]
         
         #display(toPlotIDs)
-        fig = plot_MissVal_plotly(toPlotIDs,
+        fig = self.plot_MissVal_plotly(toPlotIDs,
                                 username=username,
                                 plot_options=plot_options)
 
 
-        if WRITE_OUTPUT:    
+        if self.write_output:    
             # export the data to csv for user downloading
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             # create the directory if it does not exist
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
@@ -629,15 +635,15 @@ class SCP_plotter:
             print("Downloading links...")
 
             # create the link for downloading the data
-            CSV_link = f"/files/{url_base}/csv/" \
+            CSV_link = f"/files/{self.url_base}/csv/" \
                 f"{username}_MissVal_data.csv"
 
             # add SVG download link
 
-            SVG_link = f"/files/{url_base}/images/" \
+            SVG_link = f"/files/{self.url_base}/images/" \
                 f"{username}_MissVal_Bar_Plot.svg"
 
-            img_dir = os.path.join(APPFOLDER, "images/")
+            img_dir = os.path.join(self.app_folder, "images/")
             if not os.path.exists(img_dir):
                 Path(img_dir).mkdir(parents=True)
 
@@ -650,7 +656,7 @@ class SCP_plotter:
             SVG_link = None
         return fig, CSV_link, SVG_link
 
-    def plot_MissVal_plotly(ID_data,
+    def plot_MissVal_plotly(self, ID_data,
                             username=None,
                             plot_options=None):
         """_Plot the ID bar plot for the given data_
@@ -897,7 +903,7 @@ class SCP_plotter:
         return fig
 
     # CV Violin plots ###
-    def CV_plots(data_object, plot_options, saved_settings, username=None):
+    def CV_plots(self, data_object, plot_options, saved_settings, username=None):
         """_Prepare data for creating protein CV violin plots_
         """
         group_names = [key for key in saved_settings.keys() if "Order@" not in str(key)]
@@ -919,7 +925,7 @@ class SCP_plotter:
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
 
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] =  self.processor.filter_by_name(
                 data_object,
                 list(runname_sublist))  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -936,38 +942,38 @@ class SCP_plotter:
             or plot_options["Group By Stack"] == "ID_Mode"and not (plot_options["CV mode"] == "total" or plot_options["CV mode"] == "MS2"):  # total separated
             Intensity_dict_MS2 = {}
             for eachGroup in group_names:
-                current_condition_data = filter_by_missing_values(
+                current_condition_data =  self.processor.filter_by_missing_values(
                     group_dict[eachGroup])
-                Intensity_dict[eachGroup] = NormalizeToMedian(
+                Intensity_dict[eachGroup] =  self.processor.NormalizeToMedian(
                     current_condition_data[matrix_name])
-                current_condition_data_MS2 = filter_by_missing_values_MS2( #returns
+                current_condition_data_MS2 =  self.processor.filter_by_missing_values_MS2( #returns
                     group_dict[eachGroup])
-                Intensity_dict_MS2[eachGroup] = NormalizeToMedian(
+                Intensity_dict_MS2[eachGroup] =  self.processor.NormalizeToMedian(
                     current_condition_data_MS2[matrix_name])
         elif plot_options["CV mode"] == "MS2":
             Intensity_dict_MS2 = {}
             for eachGroup in group_names:
-                current_condition_data_MS2 = filter_by_missing_values_MS2(
+                current_condition_data_MS2 =  self.processor.filter_by_missing_values_MS2(
                     group_dict[eachGroup])
-                Intensity_dict[eachGroup] = NormalizeToMedian(
+                Intensity_dict[eachGroup] =  self.processor.NormalizeToMedian(
                     current_condition_data_MS2[matrix_name])
         else:
             for eachGroup in group_names:
-                current_condition_data = filter_by_missing_values(
+                current_condition_data =  self.processor.filter_by_missing_values(
                     group_dict[eachGroup])
-                Intensity_dict[eachGroup] = NormalizeToMedian(
+                Intensity_dict[eachGroup] =  self.processor.NormalizeToMedian(
                     current_condition_data[matrix_name])
 
         all_cvs = pd.DataFrame()
 
         for eachGroup in Intensity_dict:
-            current = calculate_cvs(
+            current =  self.processor.calculate_cvs(
                 Intensity_dict[eachGroup]).assign(Conditions=eachGroup,ID_Mode="All IDs")
             all_cvs = pd.concat([all_cvs, current], ignore_index=True)
         if plot_options["Group By X"] == "ID_Mode"or plot_options["Group By Color"] == "ID_Mode"or plot_options["Group By Stack"] == "ID_Mode"and not plot_options["CV mode"] == "total":  # total separated  # total separated
             print("MS2 CVs...")
             for eachGroup in Intensity_dict_MS2:
-                current = calculate_cvs(
+                current =  self.processor.calculate_cvs(
                     Intensity_dict_MS2[eachGroup]).assign(Conditions=eachGroup,ID_Mode="MS2 IDs")
                 all_cvs = pd.concat([all_cvs, current], ignore_index=True)
 
@@ -987,14 +993,16 @@ class SCP_plotter:
     # 2       E9PAV3  5.330290e+05  161385.491163   30.277056    DDMandDT
         #######################################################
 
-        return plot_CV_violin(allCVs=all_cvs,
+        return self.plot_CV_violin(allCVs=all_cvs,
                             username=username,
-                            plot_options=plot_options)
+                            plot_options=plot_options,
+                            saved_settings=saved_settings)
 
 
-    def plot_CV_violin(allCVs,
+    def plot_CV_violin(self, allCVs, 
                     username=None,
                     plot_options=None,
+                    saved_settings=None
                     ):
         """_Plot the CV violin plot for the given data._
 
@@ -1006,7 +1014,6 @@ class SCP_plotter:
         Returns:
             _type_: _description_
         """
-        plot_div = None
         CSV_link = None
         SVG_link = None
 
@@ -1145,9 +1152,9 @@ class SCP_plotter:
                 )
             fig.update_xaxes(categoryorder='array', categoryarray = plot_options["x_axis_order"])
 
-        if WRITE_OUTPUT:        
+        if self.write_output:        
             # create the file for donwnload
-            img_dir = os.path.join(APPFOLDER, "images/")
+            img_dir = os.path.join(self.app_folder, "images/")
             if not os.path.exists(img_dir):
                 Path(img_dir).mkdir(parents=True)
 
@@ -1155,7 +1162,7 @@ class SCP_plotter:
                 img_dir, f"{username}_CV_Violin_Plot.svg"), format = "svg", validate = False, engine = "kaleido")
             
             # create the download CSV and its link
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
             allCVs.to_csv(os.path.join(
@@ -1163,18 +1170,18 @@ class SCP_plotter:
             allCVs_summary.to_csv(os.path.join(
                 data_dir, f"{username}_CV_summary.csv"), index=False)
             print("Downloading links...")
-            CSV_link = f"/files/{url_base}/csv/" \
+            CSV_link = f"/files/{self.url_base}/csv/" \
                 f"{username}_all_CV.csv"
 
             # download SVG link
-            SVG_link = f"/files/{url_base}/images/" \
+            SVG_link = f"/files/{self.url_base}/images/" \
                 f"{username}_CV_Violin_Plot.svg"
 
 
         return fig, CSV_link, SVG_link
 
 
-    def inclusion_venn_plots(data_object, plot_options, saved_settings, username=None):
+    def inclusion_venn_plots(self, data_object, plot_options, saved_settings, username=None):
         """_Prepare data for creating ID veens plots (up to three groups)_
         """
         group_names = []
@@ -1192,7 +1199,7 @@ class SCP_plotter:
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] = self.processor.filter_by_name(
                 data_object,
                 list(runname_sublist))  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -1212,7 +1219,7 @@ class SCP_plotter:
         
         for eachGroup in group_names:
             
-            current_condition_data = filter_by_missing_values_MS2(
+            current_condition_data = self.processor.filter_by_missing_values_MS2(
                 group_dict[eachGroup], is_protein=is_protein, missing_value_thresh=99)
 
             data_set.append(
@@ -1221,7 +1228,7 @@ class SCP_plotter:
 
         #print(data_set)
 
-        fig = venn_to_plotly(
+        fig = self.venn_to_plotly(
             data_set,
             labels_set,
             plot_options=plot_options,
@@ -1229,21 +1236,21 @@ class SCP_plotter:
         CSV_link = None
         SVG_link = None
 
-        if WRITE_OUTPUT:
+        if self.write_output:
             print("Downloading links...")
             # SVG file link
-            SVG_link = f"/files/{url_base}/images/" \
+            SVG_link = f"/files/{self.url_base}/images/" \
                 f"{username}_ID_venns_Plot.svg"
 
             # create the file for donwnload
-            img_dir = os.path.join(APPFOLDER, "images/")
+            img_dir = os.path.join(self.app_folder, "images/")
             if not os.path.exists(img_dir):
                 Path(img_dir).mkdir(parents=True)
 
             fig.write_image(os.path.join(
                 img_dir, f"{username}_ID_venns_Plot.svg"), format = "svg", validate = False, engine = "kaleido")
             
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
             i = 0
@@ -1254,7 +1261,7 @@ class SCP_plotter:
         
         return fig, SVG_link, CSV_link
 
-    def venn_to_plotly(L_sets,
+    def venn_to_plotly(self, L_sets,
                     L_labels=None,
                     plot_options=None,
                     username=None):
@@ -1396,7 +1403,8 @@ class SCP_plotter:
         
 
         return fig
-    def venns_plots(data_object, plot_options, saved_settings, username=None):
+    
+    def venns_plots(self, data_object, plot_options, saved_settings, username=None):
         """_Prepare data for creating ID veens plots (up to three groups)_
         """
         group_names = []
@@ -1414,7 +1422,7 @@ class SCP_plotter:
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] = self.processor.filter_by_name(
                 data_object,
                 list(runname_sublist))  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -1432,7 +1440,7 @@ class SCP_plotter:
         
         for eachGroup in group_names:
             
-            current_condition_data = filter_by_missing_values_MS2(
+            current_condition_data = self.processor.filter_by_missing_values_MS2(
                 group_dict[eachGroup], is_protein=is_protein, missing_value_thresh=99)
 
             data_set.append(
@@ -1441,7 +1449,7 @@ class SCP_plotter:
 
         #print(data_set)
 
-        fig = venn_to_plotly(
+        fig = self.venn_to_plotly(
             data_set,
             labels_set,
             plot_options=plot_options,
@@ -1449,21 +1457,21 @@ class SCP_plotter:
         CSV_link = None
         SVG_link = None
 
-        if WRITE_OUTPUT:
+        if self.write_output:
             print("Downloading links...")
             # SVG file link
-            SVG_link = f"/files/{url_base}/images/" \
+            SVG_link = f"/files/{self.url_base}/images/" \
                 f"{username}_ID_venns_Plot.svg"
 
             # create the file for donwnload
-            img_dir = os.path.join(APPFOLDER, "images/")
+            img_dir = os.path.join(self.app_folder, "images/")
             if not os.path.exists(img_dir):
                 Path(img_dir).mkdir(parents=True)
 
             fig.write_image(os.path.join(
                 img_dir, f"{username}_ID_venns_Plot.svg"), format = "svg", validate = False, engine = "kaleido")
             
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
             i = 0
@@ -1474,7 +1482,7 @@ class SCP_plotter:
         
         return fig, SVG_link, CSV_link
 
-    def venn_to_plotly(L_sets,
+    def venn_to_plotly(self, L_sets,
                     L_labels=None,
                     plot_options=None,
                     username=None):
@@ -1616,8 +1624,9 @@ class SCP_plotter:
         
 
         return fig
+    
     # ###Ranked Abundance Plot####
-    def Rank_Abundance_Plots(data_object,  plot_options, saved_settings, username=None):
+    def Rank_Abundance_Plots(self, data_object,  plot_options, saved_settings, username=None):
         """_Prepare data for creating intensity volcano plots (two groups)_
         """
         group_names = []
@@ -1625,7 +1634,7 @@ class SCP_plotter:
         # Ranked Proteins
         ref_name = plot_options["reference_group"]
         ref_columns = saved_settings[ref_name]["records"]
-        ref_data = filter_by_name(data_object,list(ref_columns))["protein_abundance"]
+        ref_data = self.processor.filter_by_name(data_object,list(ref_columns))["protein_abundance"]
         ref_data["average_intensity"] = ref_data.mean(axis=1)
         ref_data = ref_data.sort_values(by="average_intensity",ascending = False).drop_duplicates(subset='Symbol', keep='first').dropna().reset_index()
         ranked_proteins = pd.DataFrame({"Symbol": ref_data["Symbol"],
@@ -1645,7 +1654,7 @@ class SCP_plotter:
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
 
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] = self.processor.filter_by_name(
                 data_object,
                 list(runname_sublist))  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -1654,7 +1663,7 @@ class SCP_plotter:
         Intensity_dict = {}
 
         for eachGroup in group_names:
-            current_condition_data = filter_by_missing_values(
+            current_condition_data = self.processor.filter_by_missing_values(
                 group_dict[eachGroup])
             current_prot_data = current_condition_data["protein_abundance"]
             current_prot_data["Average Reporter Ion Intensity"] = current_prot_data.mean(axis=1)
@@ -1673,11 +1682,11 @@ class SCP_plotter:
         """
 
 
-        fig = plot_ranked_abundance(Intensity_dict, plot_options, username)
+        fig = self.plot_ranked_abundance(Intensity_dict, plot_options, username)
 
-        if WRITE_OUTPUT:
+        if self.write_output:
             # create the file for donwnload
-            img_dir = os.path.join(APPFOLDER, "images/")
+            img_dir = os.path.join(self.app_folder, "images/")
             if not os.path.exists(img_dir):
                 Path(img_dir).mkdir(parents=True)
 
@@ -1685,23 +1694,23 @@ class SCP_plotter:
                 img_dir, f"{username}_ranked_abundance_Plot.svg"), format = "svg", validate = False, engine = "kaleido")
             # create the download CSV and its link
 
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
             for eachGroup in group_names:
                 Intensity_dict[eachGroup].to_csv(os.path.join(data_dir, f"{username}_{eachGroup}_ranked_abundance.csv"),index=False)
             print("Downloading links...")
-            CSV_link = f"/files/{url_base}/csv/" \
+            CSV_link = f"/files/{self.url_base}/csv/" \
                 f"{username}_up_down_regulated_volcano.csv"
 
             # download SVG link
-            SVG_link = f"/files/{url_base}/images/" \
+            SVG_link = f"/files/{self.url_base}/images/" \
                 f"{username}_abundance_volcano_Plot.svg"
             
             return fig, CSV_link, SVG_link
 
 
-    def plot_ranked_abundance(allData,
+    def plot_ranked_abundance(self, allData,
                             plot_options=None,
                             username=None,):
         
@@ -1750,8 +1759,9 @@ class SCP_plotter:
 
         
         return fig
+    
     # ###PCA plots####
-    def PCA_plots(data_object, plot_options, saved_settings,username=None):
+    def PCA_plots(self, data_object, plot_options, saved_settings,username=None):
         """_Prepare data for creating intensity PCA plots (two groups)_
         """
         group_names = []
@@ -1769,7 +1779,7 @@ class SCP_plotter:
         #print(saved_settings)
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] = self.processor.filter_by_name(
                 data_object,
                 list(runname_sublist))  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -1784,12 +1794,12 @@ class SCP_plotter:
         combined_pcaData = pd.DataFrame() # store normalized data and protein names
         for eachGroup in group_names:
 
-            current_condition_data = filter_by_missing_values(
+            current_condition_data = self.processor.filter_by_missing_values(
                 group_dict[eachGroup])
-            normalized_data = NormalizeToMedian(
+            normalized_data = self.processor.NormalizeToMedian(
                 current_condition_data["protein_abundance"],apply_log2=True)
             toFileDict = dict(zip(data_object["run_metadata"]["Run Identifier"],data_object["run_metadata"]["Run Names"]))
-            toFileDict = generate_column_to_name_mapping(normalized_data.columns, toFileDict)
+            toFileDict = self.processor.generate_column_to_name_mapping(normalized_data.columns, toFileDict)
             normalized_data.rename(columns = toFileDict,inplace=True)
 
             combined_infodata= pd.concat([combined_infodata, pd.DataFrame({
@@ -1837,22 +1847,22 @@ class SCP_plotter:
 
 
         #performs k-Nearest Neighbors imputation to fill in any missing values
-        combined_pcaData = impute_knn(combined_pcaData)
+        combined_pcaData = self.processor.impute_knn(combined_pcaData)
         combined_infodata.reset_index(drop=True, inplace=True)
         
 
         # perform PCA transform
-        combined_pcaData, exp_var_pca = CalculatePCA(combined_pcaData,
+        combined_pcaData, exp_var_pca = self.processor.CalculatePCA(combined_pcaData,
                                                         combined_infodata)
 
-        return plot_PCA_plotly(combined_pcaData,
+        return self.plot_PCA_plotly(combined_pcaData,
                             exp_var_pca,
                             plot_options=plot_options,
                             username=username,
                             )
 
 
-    def plot_PCA_plotly(pca_panda,
+    def plot_PCA_plotly(self, pca_panda,
                         exp_var_pca,
                         plot_options=None,
                         username=None,):
@@ -1904,31 +1914,31 @@ class SCP_plotter:
             yaxis=dict(linecolor='black',
                     showticklabels=False, mirror=True, range=ylimits),
         )
-        if WRITE_OUTPUT:
+        if self.write_output:
             # create the file for donwnload
-            img_dir = os.path.join(APPFOLDER, "images/")
+            img_dir = os.path.join(self.app_folder, "images/")
             if not os.path.exists(img_dir):
                 Path(img_dir).mkdir(parents=True)
 
             fig.write_image(os.path.join(
                 img_dir, f"{username}_PCA_Plot.svg"), format = "svg", validate = False, engine = "kaleido")
             # create the download CSV and its link
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
             pca_panda.to_csv(os.path.join(
                 data_dir, f"{username}_PCA.csv"), index=False)
             print("Downloading links...")
-            CSV_link = f"/files/{url_base}/csv/" \
+            CSV_link = f"/files/{self.url_base}/csv/" \
                 f"{username}_PCA.csv"
 
             # download SVG link
-            SVG_link = f"/files/{url_base}/images/" \
+            SVG_link = f"/files/{self.url_base}/images/" \
                 f"{username}_PCA_Plot.svg"
 
         return fig, CSV_link, SVG_link
 
-    def heatmap_plots(data_object, plot_options, saved_settings, username=None):
+    def heatmap_plots(self, data_object, plot_options, saved_settings, username=None):
         group_names = []
 
         # no compare groups is provided, compare first two
@@ -1944,7 +1954,7 @@ class SCP_plotter:
         #print(saved_settings)
         for eachGroup in group_names:
             runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = filter_by_name(
+            group_dict[eachGroup] = self.processor.filter_by_name(
                 data_object,
                 list(runname_sublist))  # prevent the list from being changed
             runname_list.append(runname_sublist)
@@ -1960,13 +1970,13 @@ class SCP_plotter:
         
         for eachGroup in group_names:
 
-            current_condition_data = filter_by_missing_values(
+            current_condition_data = self.processor.filter_by_missing_values(
                 group_dict[eachGroup])
-            normalized_data = NormalizeToMedian(
+            normalized_data = self.processor.NormalizeToMedian(
                 current_condition_data["protein_abundance"],apply_log2=False) #apply this later
             toFileDict = dict(zip(data_object["run_metadata"]["Run Identifier"],
                                 [eachGroup + "_#" + str(i) for i in range(len(data_object["run_metadata"]["Run Identifier"]))]))
-            toFileDict = generate_column_to_name_mapping(normalized_data.columns, toFileDict)
+            toFileDict = self.processor.generate_column_to_name_mapping(normalized_data.columns, toFileDict)
             normalized_data.rename(columns = toFileDict,inplace=True)
 
             combined_infodata= pd.concat([combined_infodata, pd.DataFrame({
@@ -2013,7 +2023,7 @@ class SCP_plotter:
                 combined_heatmap_data[col] = combined_heatmap_data[col]/magicNum
 
         
-        if WRITE_OUTPUT or plot_options["significant_only"]:
+        if self.write_output or plot_options["significant_only"]:
             
 
             # How to transpose :(
@@ -2087,7 +2097,7 @@ class SCP_plotter:
 
 
 
-        if WRITE_OUTPUT:
+        if self.write_output:
             i = 0
             log_min_FC = np.log2(plot_options["min_fold_change"]) # anova function gives p values in %
             for eachGroup in group_names:
@@ -2102,7 +2112,7 @@ class SCP_plotter:
                     print("ERROR: don't use group names that are also Symbol numbers")
                 i = i + 1
 
-            data_dir = os.path.join(APPFOLDER, "csv/")
+            data_dir = os.path.join(self.app_folder, "csv/")
             if not os.path.exists(data_dir):
                 Path(data_dir).mkdir(parents=True)
             combined_heatmap_data.to_csv(os.path.join(
@@ -2113,7 +2123,7 @@ class SCP_plotter:
             combined_heatmap_data = combined_heatmap_data[combined_heatmap_data["significant"]]
             print(combined_heatmap_data.shape)
             combined_heatmap_data = combined_heatmap_data.drop(columns=["significant","adjusted_p_values","fold_changes"]+group_names)
-        elif WRITE_OUTPUT:
+        elif self.write_output:
             combined_heatmap_data = combined_heatmap_data.drop(columns=["significant","adjusted_p_values","fold_changes"]+group_names)
 
         if plot_options["log2_transform"]:
