@@ -130,35 +130,12 @@ class SCP_processor:
         DIANN     diann-output.pg_matrix    diann-output.pr_matrix  protein   peptide   filelist_diann.txt
         """
 
-        min_unique_peptides = 1
-
-        #getting files from data system
-            # getting files from data system (webapp)
-        if queue_id is not None and processor_info is None:
-            # Method 1 pull data directly (used by the webapp)
-            process_app = DataAnalysisQueue.objects.filter(
-                pk=queue_id).first().processing_app.name
-            input1= DataAnalysisQueue.objects.filter(
-                pk=queue_id).first().output_file_1
-            input2= DataAnalysisQueue.objects.filter(
-                pk=queue_id).first().output_file_2  
-            input3= DataAnalysisQueue.objects.filter(
-                pk=queue_id).first().output_file_3
-            input4= DataAnalysisQueue.objects.filter(
-                pk=queue_id).first().output_file_4  
-            input5= DataAnalysisQueue.objects.filter(
-                pk=queue_id).first().output_file_5
-        elif queue_info is not None and processor_info is not None:
-        # Method 2 pull data from the data system (used by jupyter notebook)
-            process_app = processor_info["name"]
-            input1= queue_info["output_file_1"]
-            input2= queue_info["output_file_2"]  
-            input3= queue_info["output_file_3"]
-            input4= queue_info["output_file_4"]  
-            input5= queue_info["output_file_5"]
-        # method 3 feed data directly (through local file paths)
-        else:
-            analysis_file = input1
+        process_app = processor_info["name"]
+        input1= queue_info["output_file_1"]
+        input2= queue_info["output_file_2"]  
+        input3= queue_info["output_file_3"]
+        input4= queue_info["output_file_4"]  
+        input5= queue_info["output_file_5"]
 
         if "FragPipe" in process_app:     # fragpipe results
             # read data
@@ -247,111 +224,7 @@ class SCP_processor:
             pep_other_info["Source_File"] = input2
 
 
-        # elif "DIANN" in process_app:
-        #     # read in DIANN output files
-        #     peptide_table = pd.read_table(input2,low_memory=False)
-        #     protein_table = pd.read_table(input1,low_memory=False)
-        #     protein_table_MS2 = pd.read_table(input3,low_memory=False)
-        #     peptide_table_MS2 = pd.read_table(input4,low_memory=False)
-        #     prot_other_info = pd.DataFrame({"Protein": protein_table["Protein.Ids"], "Protein.Group": protein_table["Protein.Group"]})
-        #     pep_other_info = pd.DataFrame({"Mapped Proteins": peptide_table["Protein.Group"], "Modified.Sequence": peptide_table["Modified.Sequence"]})
-
-        #     prot_other_info["Source_File"] = "None"
-        #     pep_other_info["Source_File"] = "None"
-
-        #     # meta_table = pd.read_csv(input5, sep=' ', header=None, names=["File Name"])
-        #     # filter Contaminant
-        #     protein_table= protein_table[~protein_table['Protein.Group'].str.contains(
-        #         "contam", na=False)]
-        #     peptide_table= peptide_table[~peptide_table['Protein.Group'].str.contains(
-        #         "contam", na=False)]
-        #     protein_table_MS2= protein_table_MS2[~protein_table_MS2['Protein.Group'].str.contains(
-        #         "contam", na=False)]
-        #     peptide_table_MS2= peptide_table_MS2[~peptide_table_MS2['Protein.Group'].str.contains(
-        #         "contam", na=False)]
-        #     prot_other_info= prot_other_info[~prot_other_info['Protein'].str.contains(
-        #         "contam", na=False)]
-        #     pep_other_info= pep_other_info[~pep_other_info['Mapped Proteins'].str.contains(
-        #         "contam", na=False)]
-            
-        #     prot_other_info.rename(columns={'Protein': 'Symbol'}, inplace=True)
-        #     pep_other_info.rename(columns={'Modified.Sequence': 'Annotated Sequence'}, inplace=True)
-        #     # Replace backslashes with forward slashes if data comes from Windows
-        #     # meta_table['File Name'] = meta_table['File Name'].str.replace('\\', '/', regex=False)
-        #     # # Apply a lambda function to extract file names without extensions
-        #     # meta_table['File Name'] = meta_table['File Name'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
-        #     # run_name_list = meta_table['File Name'].tolist()
-        #     # run_name_list = pd.DataFrame({"Run Names": run_name_list})
-        #     # run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
-
-
-        #     # Get the file names from the meta table
-        #     protein_path_cols = protein_table_MS2.filter(regex='\\\\|Protein.Ids').columns
-
-        #     ## Proteins
-        #     prot_abundance = protein_table.loc[:, protein_path_cols]
-        #     prot_abundance_MS2 = protein_table_MS2.loc[:, protein_path_cols]
-        #     # Rename Columns to remove file path
-        #     file_path_cols = protein_table.filter(regex='\\\\').columns
-        #     prot_abundance.columns = [os.path.splitext(os.path.basename(x))[0] if x in file_path_cols else x for x in prot_abundance.columns]
-        #     prot_abundance = prot_abundance.rename(columns={'Protein.Ids': 'Symbol'})
-        #     prot_abundance["Symbol"] =  prot_abundance["Symbol"].str.replace(";.*","",regex = True)
-        #     prot_abundance_MS2.columns = [os.path.splitext(os.path.basename(x))[0] if x in file_path_cols else x for x in prot_abundance_MS2.columns]
-        #     prot_abundance_MS2 = prot_abundance_MS2.rename(columns={'Protein.Ids': 'Symbol'})   
-        #     prot_abundance_MS2["Symbol"] =  prot_abundance_MS2["Symbol"].str.replace(";.*","",regex = True)
-
-        #     ## Peptides
-        #     peptide_path_cols = peptide_table_MS2.filter(regex='\\\\|Modified.Sequence').columns
-        #     pep_abundance = peptide_table.loc[:, peptide_path_cols]
-        #     pep_abundance_MS2 = peptide_table_MS2.loc[:, peptide_path_cols]
-        #     # Rename Columns to remove file path
-        #     file_path_cols = peptide_table.filter(regex='\\\\').columns
-        #     pep_abundance.columns = [os.path.splitext(os.path.basename(x))[0] if x in file_path_cols else x for x in pep_abundance.columns]
-        #     pep_abundance = pep_abundance.rename(columns={'Modified.Sequence': 'Annotated Sequence'})
-        #     pep_abundance_MS2.columns = [os.path.splitext(os.path.basename(x))[0] if x in file_path_cols else x for x in pep_abundance_MS2.columns]
-        #     pep_abundance_MS2 = pep_abundance_MS2.rename(columns={'Modified.Sequence': 'Annotated Sequence'})
-
-        #     run_name_list = pd.DataFrame(data={"Run Names": [os.path.splitext(os.path.basename(x))[0] for x in file_path_cols]})
-        #     run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
-
-        #     for item in [prot_abundance,pep_abundance,prot_abundance_MS2,pep_abundance_MS2]:
-        #         # Generate a new column name mapping using the function
-        #         fileid_mapping = generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
-        #         item.rename(columns = fileid_mapping,inplace=True)
-
-
-        #     #convert to str for IDs matrix
-        #     pep_ID = pep_abundance.copy()
-        #     cols = [col for col in pep_ID.columns if col != 'Symbol']
-        #     for col in cols:
-        #         if pep_ID[col].dtype != 'object': # Check if not a string column
-        #             pep_ID[col].replace(0, np.nan, inplace=True)
-        #             # Replace all numerical values to ID
-        #             pep_ID[col] = pep_ID[col].astype(str).str.replace("\d+\.\d+", "ID", regex=True)
-        #     pep_ID_MS2 = pep_abundance_MS2.copy()
-        #     cols = [col for col in pep_ID_MS2.columns if col != 'Symbol']
-        #     for col in cols:
-        #         if pep_ID_MS2[col].dtype != 'object': # Check if not a string column
-        #             pep_ID_MS2[col].replace(0, np.nan, inplace=True)
-        #             # Replace all numerical values to ID
-        #             pep_ID_MS2[col] = pep_ID_MS2[col].astype(str).str.replace("\d+\.\d+", "MS2", regex=True)
-        #     prot_ID = prot_abundance.copy()
-        #     cols = [col for col in prot_ID.columns if col != 'Symbol']
-        #     for col in cols:
-        #         if prot_ID[col].dtype != 'object': # Check if not a string column
-        #             prot_ID[col].replace(0, np.nan, inplace=True)
-        #             # Replace all numerical values to ID
-        #             prot_ID[col] = prot_ID[col].astype(str).str.replace("\d+\.\d+", "ID", regex=True)
-        #     prot_ID_MS2 = prot_abundance_MS2.copy()
-        #     cols = [col for col in prot_ID_MS2.columns if col != 'Symbol']
-        #     for col in cols:
-        #         if prot_ID_MS2[col].dtype != 'object': # Check if not a string column
-        #             prot_ID_MS2[col].replace(0, np.nan, inplace=True)
-        #             # Replace all numerical values to ID
-        #             prot_ID_MS2[col] = prot_ID_MS2[col].astype(str).str.replace("\d+\.\d+", "MS2", regex=True)
-
-        #     pep_ID = combine_IDs(pep_ID, pep_ID_MS2)
-        #     prot_ID = combine_IDs(prot_ID, prot_ID_MS2)       
+              
             
         # elif "PD" in process_app:
         #     peptide_table = pd.read_table(input2,low_memory=False)
@@ -429,6 +302,80 @@ class SCP_processor:
         
         #         if column in prot_ID.columns:
         #             prot_ID[column] = prot_ID[column].replace(to_replace=replacements)
+        
+        elif "MQ" in process_app:
+            protein_table = pd.read_table(input1,low_memory=False)
+            peptide_table = pd.read_table(input2,low_memory=False)
+            
+            # filter Contaminant
+            protein_table= protein_table[
+                            (protein_table["Potential contaminant"] != "+")]
+
+            protein_table.rename(
+                columns={'# Peptides': 'number of peptides'}, inplace=True)
+            protein_table=protein_table.query(
+                "`number of peptides` >= @min_unique_peptides")
+            peptide_table= peptide_table[(peptide_table[
+                'Contaminant'] == False) & (peptide_table["Confidence"]== "High")]
+
+            meta_table = pd.read_table(input5,low_memory=False)
+            #filter rows in meta table on File ID column if it is NaN
+            meta_table = meta_table[meta_table['File ID'].notna()]
+
+            # Replace single backslashes with forward slashes in the 'file_paths' column
+            meta_table['File Name'] = meta_table['File Name'].str.replace('\\', '/', regex=False)
+            # Apply a lambda function to extract file names without extensions
+            meta_table['file_names'] = meta_table['File Name'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
+            file_path_name_dict = dict(zip(meta_table['File ID'], meta_table['file_names']))
+            run_name_list = pd.DataFrame({"Run Names": file_path_name_dict.values()})
+            run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
+            
+            #format the read in table into three different tables: abundance, id and other_info
+            prot_abundance = protein_table.filter(regex='Abundance:|Symbol')
+            prot_ID = protein_table.filter(regex='Found in Sample:|Symbol')
+            prot_other_info = protein_table.loc[:, ~protein_table.columns.str.contains('Found in Sample:|Abundance:')]
+            
+
+            pep_abundance = peptide_table.filter(regex='Abundance:|Annotated Sequence')
+            pep_ID = peptide_table.filter(regex='Found in Sample:|Annotated Sequence')
+            pep_other_info = peptide_table.loc[:, ~peptide_table.columns.str.contains('Found in Sample:|Abundance:')]
+
+            prot_other_info["Source_File"] = input1
+            pep_other_info["Source_File"] = input2
+
+            #change column names to file/run names to our fileID
+
+            new_dict = {"Abundance: " + key + ":": value for key, value in file_path_name_dict.items()}
+            for item in [prot_abundance,pep_abundance]:
+                # Generate a new column name mapping using the function
+                column_name_mapping = generate_column_from_name_mapping(item.columns, new_dict)
+                #TODO solving  A value is trying to be set on a copy of a slice from a DataFrame
+                
+                item.rename(columns = column_name_mapping, inplace = True)
+                #use generate_column_to_name_mapping function because we don't want partial matches as in QC_HeLa.raw and QC_HeLa_20230727235101.raw
+                fileid_mapping = generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
+                item.rename(columns = fileid_mapping,inplace=True)
+            
+
+            new_dict = {"Found in Sample: " + key + ":": value for key, value in file_path_name_dict.items()}
+            for item in [pep_ID,prot_ID]:
+                # Generate a new column name mapping using the function
+                column_name_mapping = generate_column_from_name_mapping(item.columns, new_dict)
+
+                item.rename(columns = column_name_mapping, inplace = True)
+                #use generate_column_to_name_mapping function because we don't want partial matches
+                fileid_mapping = generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
+
+                item.rename(columns = fileid_mapping,inplace=True)
+
+            # replace "High" to MS2 "Peak Found" to MBR, the rest become np.NaN
+            replacements = {'High': 'MS2', 'Peak Found': 'MBR', "Medium": np.NaN, "Low": np.NaN, "Not Found": np.NaN}
+            for column in run_name_list["Run Identifier"]:
+                if column in pep_ID.columns:
+                    pep_ID[column] = pep_ID[column].replace(to_replace=replacements)
+        
+                if column in prot_ID.columns:
+                    prot_ID[column] = prot_ID[column].replace(to_replace=replacements)
         
         # get ID summary by parsing ID Matrix
         protein_ID_summary = sumIDs(prot_ID)
