@@ -1471,3 +1471,5 @@ input/virtual/190222S_LCA9_QC_SQCA1_0244/spectraRT_full.tsv
 input/virtual/190222S_LCA9_QC_SQCA1_0244/spectraRT.predicted.bin
 input/virtual/190222S_LCA9_QC_SQCA1_0244/spectraRT.tsv
 input/virtual/190222S_LCA9_QC_SQCA1_0244/.meta/meta.bin
+__pycache__/SCP_plotter.cpython-311.pyc
+__pycache__/SCP_processor.cpython-311.pyc

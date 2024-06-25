@@ -8,6 +8,9 @@ from scipy.stats import ttest_ind_from_stats
 import json
 
 class SCP_processor:
+    def __init__(self) -> None:
+        self.min_unique_peptides = 1
+
     def sumIDs(self,IDMatrix):
         """_summarize the ID matrix infor into ID summary_
         
@@ -130,12 +133,6 @@ class SCP_processor:
         DIANN     diann-output.pg_matrix    diann-output.pr_matrix  protein   peptide   filelist_diann.txt
         """
 
-        process_app = processor_info["name"]
-        input1= queue_info["output_file_1"]
-        input2= queue_info["output_file_2"]  
-        input3= queue_info["output_file_3"]
-        input4= queue_info["output_file_4"]  
-        input5= queue_info["output_file_5"]
 
         if "FragPipe" in process_app:     # fragpipe results
             # read data
@@ -239,8 +236,7 @@ class SCP_processor:
 
         #     protein_table.rename(
         #         columns={'# Peptides': 'number of peptides'}, inplace=True)
-        #     protein_table=protein_table.query(
-        #         "`number of peptides` >= @min_unique_peptides")
+        #     protein_table = protein_table[protein_table["number of peptides"] > self.min_unique_peptides]
         #     peptide_table= peptide_table[(peptide_table[
         #         'Contaminant'] == False) & (peptide_table["Confidence"]== "High")]
 
@@ -310,46 +306,48 @@ class SCP_processor:
             # filter Contaminant
             protein_table= protein_table[
                             (protein_table["Potential contaminant"] != "+")]
-
             protein_table.rename(
                 columns={'Unique peptides': 'number of peptides'}, inplace=True)
-            protein_table=protein_table.query(
-                "`number of peptides` >= @min_unique_peptides")
+            protein_table = protein_table[(protein_table["number of peptides"] > self.min_unique_peptides)]
             peptide_table= peptide_table[(peptide_table[
-                'Potential contaminant'] == False) ]
+                'Potential contaminant'] != "+") ]
 
             meta_table = pd.read_table(input5,low_memory=False)
             #filter out last row in meta table because it is Total
             meta_table = meta_table[:-1]
 
            
-            run_name_list = pd.DataFrame({"Run Names": meta_table["Raw file"]})
+            run_name_list = pd.DataFrame({"Run Names": meta_table["Experiment"]})
             run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
             
             #format the read in table into three different tables: abundance, id and other_info
             prot_abundance = protein_table.filter(regex='Reporter intensity |Gene names')
             prot_abundance = prot_abundance.loc[:,~prot_abundance.columns.str.contains("Reporter intensity corrected ")]
+            prot_abundance = prot_abundance.loc[:,~prot_abundance.columns.str.contains("Reporter intensity count ")]
             prot_ID = protein_table.filter(regex='Identification type |Gene names')
             prot_other_info = protein_table.loc[:, ~protein_table.columns.str.contains('Identification type |Reporter intensity ')]
             
 
-            pep_abundance = peptide_table.filter(regex='Abundance:|Annotated Sequence')
-            pep_ID = peptide_table.filter(regex='Found in Sample:|Annotated Sequence')
-            pep_other_info = peptide_table.loc[:, ~peptide_table.columns.str.contains('Found in Sample:|Abundance:')]
+            pep_abundance = peptide_table.filter(regex='Reporter intensity |Sequence')
+            pep_abundance = pep_abundance.loc[:,~pep_abundance.columns.str.contains("Reporter intensity corrected ")]
+            pep_abundance = pep_abundance.loc[:,~pep_abundance.columns.str.contains("Reporter intensity count ")]
+            pep_ID = peptide_table.filter(regex='Identification type |Sequence')
+            pep_other_info = peptide_table.loc[:, ~peptide_table.columns.str.contains('Identification type |Reporter intensity ')]
 
             prot_other_info["Source_File"] = input1
             pep_other_info["Source_File"] = input2
-
-            #change column names to file/run names to our fileID
-
-            for item in [prot_abundance,pep_abundance,pep_ID_MS2,prot_ID_MS2]:
-                # Generate a new column name mapping using the function
-                fileid_mapping = self.generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
-                item.rename(columns = fileid_mapping,inplace=True)
             
-
+            #change column names to file/run names to our fileID
+            new_dict =  dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"]))
+            new_dict["Gene names"] = "Symbol"
+            new_dict["Sequence"] = "Annotated Sequence"
+            for item in [prot_abundance,pep_abundance,pep_ID,prot_ID]:
+                # Generate a new column name mapping using the function
+                fileid_mapping = self.generate_column_from_name_mapping(item.columns,new_dict)
+                item.rename(columns = fileid_mapping,inplace=True)
+            #use generate_column_to_name_mapping function because we don't want partial matches
             # replace "High" to MS2 "Peak Found" to MBR, the rest become np.NaN
-            replacements = {'High': 'MS2', 'Peak Found': 'MBR', "Medium": np.NaN, "Low": np.NaN, "Not Found": np.NaN}
+            replacements = {'By MS/MS': 'MS2', 'By matching': 'MBR',  "None": np.NaN}
             for column in run_name_list["Run Identifier"]:
                 if column in pep_ID.columns:
                     pep_ID[column] = pep_ID[column].replace(to_replace=replacements)

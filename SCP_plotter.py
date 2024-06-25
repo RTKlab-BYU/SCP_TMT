@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 # from plotly.subplots import make_subplots
 
-import SCP_processor
+from SCP_processor import SCP_processor
 
 
 class SCP_plotter:
