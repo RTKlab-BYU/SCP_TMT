@@ -341,7 +341,7 @@ class SCP_processor:
             new_dict =  dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"]))
             new_dict["Gene names"] = "Symbol"
             new_dict["Sequence"] = "Annotated Sequence"
-            for item in [prot_abundance,pep_abundance,pep_ID,prot_ID]:
+            for item in [prot_abundance,pep_abundance,pep_ID,prot_ID,prot_other_info,pep_other_info]:
                 # Generate a new column name mapping using the function
                 fileid_mapping = self.generate_column_from_name_mapping(item.columns,new_dict)
                 item.rename(columns = fileid_mapping,inplace=True)
@@ -821,15 +821,16 @@ class SCP_processor:
 
 
         x = abundance_data.select_dtypes(include=['float', 'int'])
+        print(abundance_data)
+
         imputer = KNNImputer(n_neighbors=k)
         x_imputed = imputer.fit_transform(x)
         x_imputed = pd.DataFrame(x_imputed, columns=x.columns)
+        print(x_imputed.columns)
 
-
-
-        abundance_data.loc[:, x.columns] = x_imputed.values
-        abundance_data[name] = names
-        return abundance_data
+        # Replace the original values in abundance_data with imputed values
+        x_imputed.insert(loc=0,column=name,value=names)
+        return x_imputed
 
 
     def CalculatePCA(self,abundance_object, infotib,log2T = False):

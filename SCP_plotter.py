@@ -1760,6 +1760,268 @@ class SCP_plotter:
         
         return fig
     
+
+    # ###Volcano plots####
+    def volcano_plots(self,data_object,  plot_options, saved_settings, username=None, missing_values_max=33):
+        """_Prepare data for creating intensity volcano plots (two groups)_
+        """
+        group_names = []
+
+        # no compare groups is provided, compare first two
+        for each_key in plot_options["compare groups"]:
+            if each_key in plot_options["compare groups"] and saved_settings["Order@Conditions"]:
+                group_names.append(each_key)
+
+        # import the data
+        group_dict = {}
+
+        # filter runs into different groups
+        i = 0
+        runname_list = []  # contain list of run names list for each groups
+        for eachGroup in group_names:
+            runname_sublist = saved_settings[eachGroup]["records"]
+
+            group_dict[eachGroup] = self.processor.filter_by_name(
+                data_object,
+                list(runname_sublist))  # prevent the list from being changed
+            runname_list.append(runname_sublist)
+            i += 1
+        # create a dictionary to store the intensity data
+        Intensity_dict = {}
+
+        for eachGroup in group_names:
+            current_condition_data = self.processor.filter_by_missing_values(
+                group_dict[eachGroup], missing_value_thresh=missing_values_max)
+            Intensity_dict[eachGroup] =  current_condition_data["protein_abundance"]
+            
+        
+        group1 = group_names[0]
+        group2 = group_names[1]
+        # calculate mean, standard deviation, and the number of non-null
+        # elements for each row/protein
+        group1Data = (Intensity_dict[group1]
+                    .assign(**{group1+'_Intensity': Intensity_dict[group1].drop(
+            columns=['Symbol']).mean(axis=1),
+            "group1_stdev":Intensity_dict[group1].drop(
+                        columns=['Symbol']).std(axis=1),
+            "group1_num":Intensity_dict[group1].drop(
+                        columns=['Symbol']).shape[1] - Intensity_dict[
+                        group1].isna().sum(axis=1)})
+                    .loc[:, [group1+'_Intensity',
+                            'group1_stdev',
+                            'group1_num',
+                            'Symbol']])
+        """ group1Data
+                group1_Intensity  group1_stdev  group1_num   Symbol
+        0        2.824766e+05  1.708060e+05          15  A0A0B4J2D5
+        1        2.650998e+06  6.259645e+05          15      A2RUR9
+        2        1.973150e+05  5.645698e+04          15      A8MTJ3
+        3        2.524020e+05  1.355699e+05          15      A8MWD9
+        """
+        group2Data = (Intensity_dict[group2]
+                    .assign(**{group2+'_Intensity': Intensity_dict[group2].drop(
+            columns=['Symbol']).mean(axis=1),
+            "group2_stdev":Intensity_dict[group2].drop(
+                        columns=['Symbol']).std(axis=1),
+            "group2_num":Intensity_dict[group2].drop(
+                        columns=['Symbol']).shape[1] - Intensity_dict[
+                        group2].isna().sum(axis=1)})
+                    .loc[:, [group2+'_Intensity',
+                            'group2_stdev',
+                            'group2_num',
+                            'Symbol']])
+        # find common proteins
+        commonProts = group1Data[group1Data['Symbol'].isin(group2Data['Symbol'])].drop_duplicates().loc[:,"Symbol"]
+        print(commonProts.shape)
+        print(group1Data.shape)
+        print(group2Data.shape)
+
+
+        # only leave common proteins
+        group2Data = group2Data[group2Data['Symbol'].isin(commonProts)].drop_duplicates()
+        group1Data = group1Data[group1Data['Symbol'].isin(commonProts)].drop_duplicates()
+        print(group1Data.shape)
+        print(group2Data.shape)
+
+        group2Median = group2Data[group2+'_Intensity'].median(
+            )
+        group1Median = group1Data[group1+'_Intensity'].median(
+            )
+        #this is the median for each protein across both groups, you could do a ratio, but this puts it in terms of
+        allmedian = pd.DataFrame({"col2":group2Data[group2+'_Intensity'],"col1":group1Data[group1+'_Intensity']}).median(axis=1,numeric_only=True)
+        
+        if (Intensity_dict[group1].shape[1] > 3 and
+            Intensity_dict[group2].shape[1] > 3 and
+                group2 != group1):
+            # calculate the ratio between two group median,
+            # will be used to normalize them
+            ratio1 = allmedian / group1Median
+            ratio2 = allmedian / group2Median
+
+            # merge these two set of data together, adjust groups with ratio to 
+            # median of all. Calculate pOriginal, p, significant
+            # pOriginal is a numpy array or list of p-values
+            # method is the method to be used for adjusting the p-values
+            print(group2Data.columns)
+            print(group1Data.columns)
+            print(commonProts)
+            volcanoData = (group2Data
+                        .merge(group1Data, on='Symbol', how='inner'))
+
+            volcanoData = (volcanoData
+                        .assign(**{group1+'_Intensity':lambda x: volcanoData[
+                            group1+'_Intensity'] * ratio1}))
+            volcanoData = (volcanoData
+                        .assign(**{group2+'_Intensity':lambda x: volcanoData[
+                            group2+'_Intensity'] * ratio2}))
+
+            volcanoData = (volcanoData
+                        .assign(
+                            pOriginal=self.processor.t_test_from_summary_stats(
+                                m1=volcanoData[group2+'_Intensity'],
+                                m2=volcanoData[group1+'_Intensity'],
+                                s1=volcanoData['group2_stdev'],
+                                s2=volcanoData['group1_stdev'],
+                                n1=volcanoData['group2_num'],
+                                n2=volcanoData['group1_num'])))
+            # filter out rows in volcanoData that have pOriginal == nan
+            # if pOriginal is nan, then the p value will be nan
+            volcanoData = volcanoData[volcanoData['pOriginal'].notna()]
+            volcanoData = (volcanoData
+                        .assign(benjamini=multipletests(volcanoData[
+                            "pOriginal"], method='fdr_bh')[1]))
+
+            volcanoData = (volcanoData
+                        .assign(significant=volcanoData['benjamini'] < 0.01))
+
+            # add upRegulated, downRegulated, and notRegulated columns
+            volcanoData = volcanoData.assign(upRegulated=lambda x: (
+                np.log10(volcanoData[group2+'_Intensity']/volcanoData[
+                    group1+'_Intensity']) >np.log10(1.25)) & (volcanoData['significant']))
+
+            volcanoData = volcanoData.assign(downRegulated=lambda x: (
+                np.log10(volcanoData[group2+'_Intensity']/volcanoData[
+                    group1+'_Intensity']) < -np.log10(1.25)) & (volcanoData['significant']))
+            volcanoData = volcanoData.assign(notRegulated=lambda x: (abs(
+            np.log10(volcanoData[group2+'_Intensity']/volcanoData[
+                    group1+'_Intensity'])) <=np.log10(1.25)) & (~volcanoData['significant']))
+            fig = self.plot_volcano_colored(
+                volcanoData,
+                label=f"({group2}/{group1})",
+                saved_settings=saved_settings,
+                plot_options=plot_options,
+                username=username,
+            )
+            CSV_link = None
+            SVG_link = None
+            if self.write_output:
+                # create the file for donwnload
+                img_dir = os.path.join(self.app_folder, "images/")
+                if not os.path.exists(img_dir):
+                    Path(img_dir).mkdir(parents=True)
+
+                fig.write_image(os.path.join(
+                    img_dir, f"{username}_abundance_volcano_Plot.svg"), format = "svg", validate = False, engine = "kaleido")
+                # create the download CSV and its link
+
+                data_dir = os.path.join(self.app_folder, "csv/")
+                if not os.path.exists(data_dir):
+                    Path(data_dir).mkdir(parents=True)
+                volcanoData.to_csv(os.path.join(
+                    data_dir, f"{username}_up_down_regulated_volcano.csv"),
+                    index=False)
+                print("Downloading links...")
+                CSV_link = f"/files/{self.url_base}/csv/" \
+                    f"{username}_up_down_regulated_volcano.csv"
+
+                # download SVG link
+                SVG_link = f"/files/{self.url_base}/images/" \
+                    f"{username}_abundance_volcano_Plot.svg"
+            
+            return fig, CSV_link, SVG_link
+
+
+    def plot_volcano_colored(self, allData,
+                            label, saved_settings,
+                            plot_options=None,
+                            username=None,):
+        group_names = []
+
+        # no compare groups is provided, compare first two
+        for each_key in plot_options["compare groups"]:
+            if each_key in plot_options["compare groups"] and saved_settings["Order@Conditions"]:
+                group_names.append(each_key)
+        
+        total_labels = []
+        left = group_names[0]+'_Intensity'
+        right = group_names[1]+'_Intensity'
+        downData = allData[allData['downRegulated']
+                        == True]
+        upData = allData[allData['upRegulated'] == True]
+
+        fig = px.scatter(
+            width=plot_options["width"],
+            height=plot_options["height"],)
+        if allData.shape[0] != 0:
+            fig.add_scatter(x=np.log2(allData[right]/allData[left]),
+                            y=-np.log10(allData["benjamini"]),
+                            text=allData["Symbol"],
+                            mode="markers", marker=dict(
+                                color=plot_options["all color"],size=20))
+        if downData.shape[0] != 0:
+            fig.add_scatter(x=np.log2(downData[right]/downData[left]),
+                            y=-np.log10(downData["benjamini"]),
+                            text=downData["Symbol"],
+                            mode="markers",
+                            marker=dict(color=plot_options["down color"],size=20))
+        if upData.shape[0] != 0:
+            fig.add_scatter(x=np.log2(upData[right]/upData[left]),
+                            y=-np.log10(upData["benjamini"]),
+                            text=upData["Symbol"],
+                            mode="markers",
+                            marker=dict(color=plot_options["up color"],size=20))
+            fig.update_traces(
+                mode="markers",
+                hovertemplate="%{text}<br>x=: %{x}"
+                " <br>y=: %{y}")
+        fig.add_hline(y=2)
+        fig.add_vline(x=-np.log2(10.0**-np.log10(1.25)))
+        fig.add_vline(x=np.log2(10.0**-np.log10(1.25)))
+        if plot_options["title"] != "" or plot_options["title"] is not None:
+            plot_title = plot_options["title"] + " " + label
+        else:
+            plot_title = None
+        if not plot_options["xlimits"] or plot_options["xlimits"] == "[]" or \
+                not isinstance(plot_options["xlimits"], list):
+            xlimits = None
+        else:
+            xlimits = plot_options["xlimits"]
+
+        if not plot_options["ylimits"] or plot_options["ylimits"] == "[]" or \
+                not isinstance(plot_options["ylimits"], list):
+            ylimits = None
+        else:
+            ylimits = plot_options["ylimits"]
+
+        fig.update_layout(
+            font=plot_options["font"],
+
+            showlegend=False,
+            title=plot_title,
+            xaxis=dict(title=dict(
+                text=plot_options["X Title"]), range=xlimits),
+            yaxis=dict(title=dict(
+                text=plot_options["Y Title"]), range=ylimits),
+            annotations=total_labels,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+
+        )
+
+        
+        return fig
+
+
     # ###PCA plots####
     def PCA_plots(self, data_object, plot_options, saved_settings,username=None):
         """_Prepare data for creating intensity PCA plots (two groups)_
@@ -1797,7 +2059,7 @@ class SCP_plotter:
             current_condition_data = self.processor.filter_by_missing_values(
                 group_dict[eachGroup])
             normalized_data = self.processor.NormalizeToMedian(
-                current_condition_data["protein_abundance"],apply_log2=True)
+                current_condition_data["protein_abundance"],apply_log2=False)
             toFileDict = dict(zip(data_object["run_metadata"]["Run Identifier"],data_object["run_metadata"]["Run Names"]))
             toFileDict = self.processor.generate_column_to_name_mapping(normalized_data.columns, toFileDict)
             normalized_data.rename(columns = toFileDict,inplace=True)
@@ -1815,7 +2077,7 @@ class SCP_plotter:
                 combined_pcaData = normalized_data
                 print("Empty")
             else:
-                combined_pcaData = pd.merge(combined_pcaData, normalized_data)
+                combined_pcaData = pd.merge(combined_pcaData.drop_duplicates(), normalized_data.drop_duplicates())
 
         #normalize the data
         # using ratio of current group median value divide by the all groups median 
@@ -1850,6 +2112,7 @@ class SCP_plotter:
         combined_pcaData = self.processor.impute_knn(combined_pcaData)
         combined_infodata.reset_index(drop=True, inplace=True)
         
+
 
         # perform PCA transform
         combined_pcaData, exp_var_pca = self.processor.CalculatePCA(combined_pcaData,
