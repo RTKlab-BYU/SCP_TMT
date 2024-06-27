@@ -1,9 +1,9 @@
 import pandas as pd
 import plotly.express as px
-important_proteins = ["MET6","PFK2","URA2"]
+important_proteins = ["MET6","HIS4","URA2"]
 file_name = "proteinGroups.txt"
-run_filter = "Quan"
-# run_filter = "id_"
+# run_filter = "Quan"
+run_filter = "id_"
 
 
 # tko_channel_groups = {"MET6 KO":[1,2,3],
