@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.express as px
 important_proteins = ["MET6","HIS4","URA2"]
 # file_name = "peptides 2.txt"
-file_name = "proteinGroups 2.txt"
+file_name = "peptides 2.txt"
 run_filter = "Quan"
 # run_filter = "id_"
 
@@ -19,7 +19,7 @@ prot_abundance = prot_abundance.filter(regex=run_filter+"|Gene names")
 prot_abundance = prot_abundance.loc[:,~prot_abundance.columns.str.contains("Reporter intensity corrected ")]
 prot_abundance = prot_abundance.loc[:,~prot_abundance.columns.str.contains("Reporter intensity count ")]
 # print(data["Gene names"])
-# print(prot_abundance)
+print(prot_abundance.columns)
 numeric_cols =  prot_abundance.columns
 numeric_cols = numeric_cols[numeric_cols != "Gene names"]
 prot_abundance = pd.melt(prot_abundance,id_vars="Gene names", value_vars = numeric_cols,var_name="Channel",value_name="intensity")
