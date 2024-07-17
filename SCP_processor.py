@@ -4,6 +4,8 @@ from sklearn.impute import KNNImputer
 import numpy as np
 import pandas as pd
 
+from pandas.api.types import is_numeric_dtype
+
 from scipy.stats import ttest_ind_from_stats
 import json
 
@@ -58,7 +60,7 @@ class SCP_processor:
         column_name_mapping = {}
         for col in columns:
             for key, value in partial_column_name_mapping.items():
-                if key in col: #in the case of PD, we are looking for a pattern within the column name
+                if str(key) in str(col): #in the case of PD, we are looking for a pattern within the column name
                     column_name_mapping[col] = value
                     break
         return column_name_mapping
@@ -317,7 +319,7 @@ class SCP_processor:
             meta_table = meta_table[:-1]
 
            
-            run_name_list = pd.DataFrame({"Run Names": meta_table["Experiment"]})
+            run_name_list = pd.DataFrame({"Run Names": meta_table["Raw file"]})
             run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
             
             #format the read in table into three different tables: abundance, id and other_info
@@ -338,13 +340,40 @@ class SCP_processor:
             pep_other_info["Source_File"] = input2
             
             #change column names to file/run names to our fileID
-            new_dict =  dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"]))
+            temp_table = meta_table.copy()
+            temp_table["start"] = "Identification type "
+            if is_numeric_dtype(meta_table["Experiment"]):
+                temp_table["Experiment"] = temp_table["Experiment"].astype(str).str.replace('\.[0-9]+', '',regex=True)
+            else:
+                print("*********")
+            temp_table["pattern"] = temp_table["start"]+temp_table["Experiment"]
+            new_dict =  dict(zip(temp_table["pattern"] ,run_name_list["Run Identifier"]))
+           
             new_dict["Gene names"] = "Symbol"
             new_dict["Sequence"] = "Annotated Sequence"
-            for item in [prot_abundance,pep_abundance,pep_ID,prot_ID,prot_other_info,pep_other_info]:
+            for item in [pep_ID,prot_ID,prot_other_info,pep_other_info]:
                 # Generate a new column name mapping using the function
                 fileid_mapping = self.generate_column_from_name_mapping(item.columns,new_dict)
                 item.rename(columns = fileid_mapping,inplace=True)
+
+            #change column names to file/run names to our fileID
+            old_dict = dict(zip(temp_table["Experiment"] ,run_name_list["Run Identifier"]))
+            old_dict["Gene names"] = "Symbol"
+            old_dict["Sequence"] = "Annotated Sequence"
+            for item in [prot_abundance,pep_abundance]:
+                # Generate a new column name mapping using the function
+                
+                
+                item.columns = item.columns.str.replace("Reporter intensity ","")
+                i =0                
+                for eachcol in item.columns.to_list():
+                    if eachcol not in old_dict.keys():
+                        new_dict[eachcol]=old_dict[" ".join(eachcol.split(" ")[1:])]#+"-"+eachcol.split(" ")[0]
+                    i = i + 1
+                fileid_mapping = self.generate_column_from_name_mapping(item.columns,new_dict)
+
+                item.rename(columns = fileid_mapping,inplace=True)
+                # print(item.columns)
             #use generate_column_to_name_mapping function because we don't want partial matches
             # replace "High" to MS2 "Peak Found" to MBR, the rest become np.NaN
             replacements = {'By MS/MS': 'MS2', 'By matching': 'MBR',  "None": np.NaN}
@@ -443,8 +472,8 @@ class SCP_processor:
                 final_data_object = eachDataObject
             else:
                 final_data_object['run_metadata'] = pd.concat([final_data_object['run_metadata'],eachDataObject['run_metadata']]).reset_index(drop=True)
-                final_data_object['protein_other_info'] = pd.concat([final_data_object['protein_other_info'],eachDataObject['protein_other_info']]).reset_index(drop=True)
-                final_data_object['peptide_other_info'] = pd.concat([final_data_object['peptide_other_info'],eachDataObject['peptide_other_info']]).reset_index(drop=True)
+                final_data_object['protein_other_info'] = eachDataObject["protein_abundance"][["Symbol"]]
+                final_data_object['peptide_other_info'] = eachDataObject["peptide_abundance"][["Annotated Sequence"]]
                 final_data_object['protein_ID_Summary'] = pd.concat([final_data_object['protein_ID_Summary'],eachDataObject['protein_ID_Summary']]).reset_index(drop=True)
                 final_data_object['peptide_ID_Summary'] = pd.concat([final_data_object['peptide_ID_Summary'],eachDataObject['peptide_ID_Summary']]).reset_index(drop=True)
                 duplicates_found = False
@@ -941,3 +970,4 @@ class SCP_processor:
             data_dict["peptide_ID_Summary"]["names"].isin(
                 identifier_list)]
         return filtered_data
+    

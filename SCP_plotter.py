@@ -975,6 +975,7 @@ class SCP_plotter:
             for eachGroup in Intensity_dict_MS2:
                 current =  self.processor.calculate_cvs(
                     Intensity_dict_MS2[eachGroup]).assign(Conditions=eachGroup,ID_Mode="MS2 IDs")
+                    
                 all_cvs = pd.concat([all_cvs, current], ignore_index=True)
 
         #add columns for the categories specified in settings file (the one with all the filenames)
