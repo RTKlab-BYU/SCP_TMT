@@ -201,7 +201,7 @@ class SCP_plotter:
                 export_ids[eachCategory] = ""
                 for eachGroup in group_names:
                     export_ids.loc[export_ids["Conditions"]==eachGroup,eachCategory] = saved_settings[eachGroup][eachCategory]
-            export_ids = export_ids.replace({"Names": dict(zip(data_object["run_metadata"]["Run Identifier"],data_object["run_metadata"]["Run Names"]))})
+            export_ids = export_ids.replace({"Names": dict(zip(data_object["run_metadata"]["Channel Identifier"],data_object["run_metadata"]["Run Names"]))})
             
             # export the data to csv
             export_ids.to_csv(os.path.join(
@@ -626,7 +626,7 @@ class SCP_plotter:
             categories = [col for col in list(saved_settings[list(group_names)[0]].keys()) if col not in standard_groups]
             
             
-            toPlotIDs = toPlotIDs.replace({"Names": dict(zip(data_object["run_metadata"]["Run Identifier"],data_object["run_metadata"]["Run Names"]))})
+            toPlotIDs = toPlotIDs.replace({"Names": dict(zip(data_object["run_metadata"]["Channel Identifier"],data_object["run_metadata"]["Run Names"]))})
             
             # export the data to csv
             toPlotIDs.to_csv(os.path.join(
@@ -2061,7 +2061,7 @@ class SCP_plotter:
                 group_dict[eachGroup])
             normalized_data = self.processor.NormalizeToMedian(
                 current_condition_data["protein_abundance"],apply_log2=False)
-            toFileDict = dict(zip(data_object["run_metadata"]["Run Identifier"],data_object["run_metadata"]["Run Names"]))
+            toFileDict = dict(zip(data_object["run_metadata"]["Channel Identifier"],data_object["run_metadata"]["Run Names"]))
             toFileDict = self.processor.generate_column_to_name_mapping(normalized_data.columns, toFileDict)
             normalized_data.rename(columns = toFileDict,inplace=True)
 
@@ -2238,8 +2238,8 @@ class SCP_plotter:
                 group_dict[eachGroup])
             normalized_data = self.processor.NormalizeToMedian(
                 current_condition_data["protein_abundance"],apply_log2=False) #apply this later
-            toFileDict = dict(zip(data_object["run_metadata"]["Run Identifier"],
-                                [eachGroup + "_#" + str(i) for i in range(len(data_object["run_metadata"]["Run Identifier"]))]))
+            toFileDict = dict(zip(data_object["run_metadata"]["Channel Identifier"],
+                                [eachGroup + "_#" + str(i) for i in range(len(data_object["run_metadata"]["Channel Identifier"]))]))
             toFileDict = self.processor.generate_column_to_name_mapping(normalized_data.columns, toFileDict)
             normalized_data.rename(columns = toFileDict,inplace=True)
 

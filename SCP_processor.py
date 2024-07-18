@@ -145,10 +145,10 @@ class SCP_processor:
             #protein remove = 
 
             # pep_info_columns = ["Index", "Gene", "ProteinID", "SequenceWindow", "Start", "End", "MaxPepProb", "ReferenceIntensity"]
-            pep_info_columns = ["Index", "Gene", "ProteinID", "MaxPepProb", "ReferenceIntensity"]
+            pep_info_columns = ["Index", "Gene", "ProteinID", "SequenceWindow", "Start", "End", "MaxPepProb", "ReferenceIntensity"]
 
 
-            prot_info_columns = ["Index", "NumberPSM", "MaxPepProb", "ReferenceIntensity"]
+            prot_info_columns = ["Index",  "NumberPSM", "MaxPepProb", "ReferenceIntensity"]
 
             # ALL
             ## Proteins abundance table
@@ -176,12 +176,12 @@ class SCP_processor:
             
             run_name_list = pd.DataFrame({"Run Names": run_name_list})
             run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
-
+            run_name_list['Channel Identifier'] = run_name_list["Run Identifier"]
             # print(pep_ID_MS2.columns)
 
             for item in [prot_abundance,pep_abundance,pep_ID_MS2,prot_ID_MS2]:
                 # Generate a new column name mapping using the function
-                fileid_mapping = self.generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Run Identifier"])))
+                fileid_mapping = self.generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Channel Identifier"])))
                 item.rename(columns = fileid_mapping,inplace=True)
             
 
@@ -360,15 +360,18 @@ class SCP_processor:
             old_dict = dict(zip(temp_table["Experiment"] ,run_name_list["Run Identifier"]))
             old_dict["Gene names"] = "Symbol"
             old_dict["Sequence"] = "Annotated Sequence"
+            max_channel = 0 
             for item in [prot_abundance,pep_abundance]:
                 # Generate a new column name mapping using the function
                 
                 
-                item.columns = item.columns.str.replace("Reporter intensity ","")
-                i =0                
+                
+                i =0    
+                           
                 for eachcol in item.columns.to_list():
                     if eachcol not in old_dict.keys():
-                        new_dict[eachcol]=old_dict[" ".join(eachcol.split(" ")[1:])]#+"-"+eachcol.split(" ")[0]
+                        new_dict[eachcol]=old_dict[" ".join(eachcol.split(" ")[3:])] +"-"+eachcol.split(" ")[2]
+                        max_channel = max(max_channel,int(eachcol.split(" ")[2]))
                     i = i + 1
                 fileid_mapping = self.generate_column_from_name_mapping(item.columns,new_dict)
 
@@ -377,13 +380,32 @@ class SCP_processor:
             #use generate_column_to_name_mapping function because we don't want partial matches
             # replace "High" to MS2 "Peak Found" to MBR, the rest become np.NaN
             replacements = {'By MS/MS': 'MS2', 'By matching': 'MBR',  "None": np.NaN}
-            for column in run_name_list["Run Identifier"]:
+
+            new_run_name_list = pd.DataFrame({"Run Names":[],"Run Identifier":[]})
+            for index, each_row in run_name_list.iterrows():
+                old_identifier = each_row["Run Identifier"]
+                for channel in range(1,max_channel+1):
+                    each_row["Channel Identifier"] =  old_identifier + "-" + str(channel)
+                    new_run_name_list = pd.concat([new_run_name_list,each_row.to_frame().T])
+                
+            run_name_list = new_run_name_list
+
+            for column in run_name_list["Run Identifier"].drop_duplicates():
                 if column in pep_ID.columns:
-                    pep_ID[column] = pep_ID[column].replace(to_replace=replacements)
-        
+                    for channel in run_name_list.loc[run_name_list["Run Identifier"]==column,"Channel Identifier"].to_list():
+                        pep_ID[channel] = pep_ID[column]
+                        pep_ID[channel] = pep_ID[channel].replace(to_replace=replacements)
+                        pep_abundance.loc[pd.isna(pep_ID[channel]),channel] = np.NaN
+                    pep_ID = pep_ID.drop(columns=column)
                 if column in prot_ID.columns:
-                    prot_ID[column] = prot_ID[column].replace(to_replace=replacements)
-        
+                    for channel in run_name_list.loc[run_name_list["Run Identifier"]==column,"Channel Identifier"].to_list():
+                        # print(prot_abundance.loc[prot_abundance[channel]==np.NaN,channel])
+                        # print(prot_abundance[channel])
+                        prot_ID[channel] = prot_ID[column]
+                        prot_ID[channel] = prot_ID[channel].replace(to_replace=replacements)
+                        prot_abundance.loc[pd.isna(prot_ID[channel]),channel] = np.nan
+                        # print(prot_abundance.loc[pd.isna(prot_ID[channel]),channel])
+                    prot_ID = prot_ID.drop(columns=column)
         # get ID summary by parsing ID Matrix
         protein_ID_summary = self.sumIDs(prot_ID)
         peptide_ID_summary = self.sumIDs(pep_ID)
@@ -792,10 +814,10 @@ class SCP_processor:
                 name)].mean(axis=1, skipna=True),
             stdev=abundance_data.loc[:, ~abundance_data.columns.str.contains(
                 name)].std(axis=1, skipna=True),
-            CV=abundance_data.loc[:, ~abundance_data.columns.str.contains(name)].std(
+            CV=abs(abundance_data.loc[:, ~abundance_data.columns.str.contains(name)].std(
                 axis=1, skipna=True) / abundance_data.loc[
                 :, ~abundance_data.columns.str.contains(name)].mean(
-                axis=1, skipna=True) * 100)
+                axis=1, skipna=True) * 100))
 
         abundance_data = abundance_data.loc[:, [
                 name, "intensity", "stdev", "CV"]]
@@ -918,7 +940,7 @@ class SCP_processor:
         """
 
         # make dict for each runname, no Symbol/sequence
-        nameDict = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Run Identifier"]))
+        nameDict = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Channel Identifier"]))
         
         identifier_list = []
         
