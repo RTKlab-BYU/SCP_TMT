@@ -201,7 +201,7 @@ class SCP_plotter:
                 export_ids[eachCategory] = ""
                 for eachGroup in group_names:
                     export_ids.loc[export_ids["Conditions"]==eachGroup,eachCategory] = saved_settings[eachGroup][eachCategory]
-            export_ids = export_ids.replace({"Names": dict(zip(data_object["run_metadata"]["Channel Identifier"],data_object["run_metadata"]["Run Names"]))})
+            export_ids = export_ids.replace({"Names": dict(zip(data_object["run_metadata"]["Run Identifier"],data_object["run_metadata"]["Run Names"]))})
             
             # export the data to csv
             export_ids.to_csv(os.path.join(
@@ -546,7 +546,7 @@ class SCP_plotter:
                 data_object,
                 runname_sublist)  # prevent the list from being changed
             runname_list.append(runname_sublist)
-            print(runname_sublist)
+            # print(runname_sublist)
             i += 1
 
             #print(group_dict[eachGroup]["run_metadata"])
@@ -564,7 +564,7 @@ class SCP_plotter:
             # Protein ID summary
             currentData = group_dict[eachCondition]
             current =  self.processor.calculate_missing_values_MS2(currentData, is_protein=True)
-            print(current)
+            # print(current)
             current["Conditions"] = eachCondition
             allProteins = pd.concat([allProteins, current])
             # Peptide ID summary
@@ -626,7 +626,7 @@ class SCP_plotter:
             categories = [col for col in list(saved_settings[list(group_names)[0]].keys()) if col not in standard_groups]
             
             
-            toPlotIDs = toPlotIDs.replace({"Names": dict(zip(data_object["run_metadata"]["Channel Identifier"],data_object["run_metadata"]["Run Names"]))})
+            toPlotIDs = toPlotIDs.replace({"Names": dict(zip(data_object["run_metadata"]["Run Identifier"],data_object["run_metadata"]["Run Names"]))})
             
             # export the data to csv
             toPlotIDs.to_csv(os.path.join(

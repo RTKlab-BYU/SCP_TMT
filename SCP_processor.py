@@ -35,22 +35,22 @@ class SCP_processor:
         columns = [col for col in IDMatrix.columns if not any(
             substring in col for substring in [
                 'Symbol', 'Annotated Sequence'])]
+        runs = list(set(["-".join(x.split("-")[0:2])  for x in columns]))
+        # print(runs)
         #put each ID_Modes into a list
-        returnNames = []
         MS2_ID = []
         MBR_ID = []
         total_ID = []
-        for eachColumn in columns:
-            MS2_ID.append(len(IDMatrix[eachColumn][IDMatrix[eachColumn] == "MS2"])) #PD differentiates
-            MBR_ID.append(len(IDMatrix[eachColumn][IDMatrix[eachColumn] == "MBR"])) #PD differentiates
-            total_ID_each = len(IDMatrix[eachColumn][IDMatrix[eachColumn] == "ID"]) #some don't so we count total directly
+        for eachRun in runs:
+            currentMatrix = IDMatrix.loc[:,IDMatrix.columns.str.contains(eachRun+"-")]
+            MS2_ID.append(len(currentMatrix[currentMatrix.isin(["MS2"]).any(axis=1)])) #PD differentiates
+            MBR_ID.append(len(currentMatrix[currentMatrix.isin(["MBR"]).any(axis=1)])) #PD differentiates
+            total_ID_each = len(currentMatrix[currentMatrix.isin(["ID"]).any(axis=1)]) #some don't so we count total directly
             if total_ID_each == 0: #otherwise we sum
-                total_ID_each = len(IDMatrix[eachColumn][
-                    IDMatrix[eachColumn] == "MS2"]) + len(IDMatrix[
-                    eachColumn][IDMatrix[eachColumn] == "MBR"])
+                total_ID_each = len(currentMatrix[currentMatrix.isin(["MS2"]).any(axis=1)]) + len(currentMatrix[currentMatrix.isin(["MBR"]).any(axis=1)])
             total_ID.append(total_ID_each)
 
-        return pd.DataFrame({'names': columns,
+        return pd.DataFrame({'names': runs,
                             'MS2_IDs': MS2_ID,
                             'MBR_IDs': MBR_ID,
                             'Total_IDs': total_ID})
@@ -172,16 +172,25 @@ class SCP_processor:
             pep_ID_MS2 = peptide_table.loc[:, all_ID_cols]
 
             # remove "Spectral Count", " MaxLFQ Intensity" or " Intensity" from names
-            run_name_list = [name for name in all_ID_cols.drop("Annotated Sequence")]
+            run_list = [name.split("#")[0] for name in all_ID_cols.drop("Annotated Sequence")]
+            channel_list = [name.split("#")[1] for name in all_ID_cols.drop("Annotated Sequence")]
             
-            run_name_list = pd.DataFrame({"Run Names": run_name_list})
-            run_name_list['Run Identifier'] = run_name_list.index.to_series().apply(lambda x: str(file_id) + "-" + str(x))
-            run_name_list['Channel Identifier'] = run_name_list["Run Identifier"]
+            run_name_list = pd.DataFrame({"Run Names": run_list})
+            unique_run_list = list(set(run_list))
+            run_ids = []
+            channel_ids = []
+            for run in range(len(unique_run_list)):
+                all_channels = run_name_list.loc[run_name_list['Run Names'] == unique_run_list[run]]
+                run_ids = run_ids+ ["-".join([str(file_id),str(run)]) for x in range(len(all_channels))]
+                channel_ids = channel_ids + ["-".join([str(file_id),str(run),str(i)]) for i in range(len(all_channels))]
             # print(pep_ID_MS2.columns)
+            run_name_list["Run Identifier"] = run_ids
+            run_name_list["Channel Identifier"] = channel_ids
+
 
             for item in [prot_abundance,pep_abundance,pep_ID_MS2,prot_ID_MS2]:
                 # Generate a new column name mapping using the function
-                fileid_mapping = self.generate_column_to_name_mapping(item.columns, dict(zip(run_name_list["Run Names"],run_name_list["Channel Identifier"])))
+                fileid_mapping = self.generate_column_to_name_mapping(item.columns, dict(zip(all_ID_cols.drop("Annotated Sequence"),run_name_list["Channel Identifier"])))
                 item.rename(columns = fileid_mapping,inplace=True)
             
 
@@ -362,12 +371,8 @@ class SCP_processor:
             old_dict["Sequence"] = "Annotated Sequence"
             max_channel = 0 
             for item in [prot_abundance,pep_abundance]:
-                # Generate a new column name mapping using the function
-                
-                
-                
-                i =0    
-                           
+                # Generate a new column name mapping using the function                
+                i =0
                 for eachcol in item.columns.to_list():
                     if eachcol not in old_dict.keys():
                         new_dict[eachcol]=old_dict[" ".join(eachcol.split(" ")[3:])] +"-"+eachcol.split(" ")[2]
@@ -576,7 +581,7 @@ class SCP_processor:
         # found all the proteins/peptides with missing values rate below
         # the threshold, pep_columns contains the remaining protein/peptide
         # in a pandas dataframe with $names as its column name
-        print(data_object[matrix_name].columns)
+        # print(data_object[matrix_name].columns)
         for each_column in data_object[matrix_name].loc[:, ~data_object[matrix_name].columns.str.contains(name)].columns:
             # replace "nan" to np.nan
             protein_columns = protein_columns.replace({"nan": np.nan,"NA":np.nan}) 
@@ -940,20 +945,26 @@ class SCP_processor:
         """
 
         # make dict for each runname, no Symbol/sequence
-        nameDict = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Channel Identifier"]))
+        nameDict_channels = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Channel Identifier"]))
+
+        nameDict_runs = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Run Identifier"]))
         
         identifier_list = []
         
         identifier_list_plus = []
+
+        run_id_list = []
+
         if "Annotated Sequence" in runname_list:
             runname_list.remove("Annotated Sequence")
         if "Symbol" in runname_list:
             runname_list.remove("Symbol")
         for eachName in runname_list:
-            identifier_list.append(nameDict[eachName])
-
+            run_id_list.append(nameDict_runs[eachName])
         for eachName in runname_list:
-            identifier_list_plus.append(nameDict[eachName])
+            identifier_list.append(nameDict_channels[eachName])
+        for eachName in runname_list:
+            identifier_list_plus.append(nameDict_channels[eachName])
 
 
         filtered_data = {}
@@ -987,9 +998,9 @@ class SCP_processor:
                 word == col for word in identifier_list_plus)]]
         filtered_data["protein_ID_Summary"] = data_dict["protein_ID_Summary"][
             data_dict["protein_ID_Summary"]["names"].isin(
-                identifier_list)]
+                run_id_list)]
         filtered_data["peptide_ID_Summary"] = data_dict["peptide_ID_Summary"][
             data_dict["peptide_ID_Summary"]["names"].isin(
-                identifier_list)]
+                run_id_list)]
         return filtered_data
     
