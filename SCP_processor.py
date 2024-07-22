@@ -935,72 +935,137 @@ class SCP_processor:
         return pca_panda, exp_var_pca
 
 
-    def filter_by_name(self,data_dict, runname_list):
-        """_Filter the data_dict based on runname_list, only keep the columns
-        of the data_dict that are in the runname_list_
-        Args:
-
-        Returns:
-            _type_: _description_
-        """
-
-        # make dict for each runname, no Symbol/sequence
-        nameDict_channels = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Channel Identifier"]))
-
-        nameDict_runs = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Run Identifier"]))
-        
-        identifier_list = []
-        
-        identifier_list_plus = []
-
-        run_id_list = []
-
-        if "Annotated Sequence" in runname_list:
-            runname_list.remove("Annotated Sequence")
-        if "Symbol" in runname_list:
-            runname_list.remove("Symbol")
-        for eachName in runname_list:
-            run_id_list.append(nameDict_runs[eachName])
-        for eachName in runname_list:
-            identifier_list.append(nameDict_channels[eachName])
-        for eachName in runname_list:
-            identifier_list_plus.append(nameDict_channels[eachName])
-
-
-        filtered_data = {}
-    # filtered_data["meta"] = data_dict["meta"]
-        runname_list.extend(["Annotated Sequence","Symbol"])
-        identifier_list_plus.extend(["Annotated Sequence","Symbol"])
-
-        #filtered_data["run_metadata"] = [item for item in data_dict[
-        #   "run_metadata"] if item in runname_list]
-        
-        filtered_data["run_metadata"] = data_dict["run_metadata"][
-            data_dict["run_metadata"]["Run Names"].isin(
-                runname_list)]  
-        filtered_data["protein_abundance"] = data_dict["protein_abundance"][[
-            col for col in data_dict["protein_abundance"].columns if any(
-                word == col for word in identifier_list_plus)]]
-        filtered_data["peptide_abundance"] = data_dict["peptide_abundance"][[
-            col for col in data_dict["peptide_abundance"].columns if any(
-                word == col for word in identifier_list_plus)]]
-        filtered_data["protein_other_info"] = data_dict["protein_other_info"][[
-            col for col in data_dict["protein_other_info"].columns if any(
-                word == col for word in identifier_list_plus)]]
-        filtered_data["peptide_other_info"] = data_dict["peptide_other_info"][[
-            col for col in data_dict["peptide_other_info"].columns if any(
-                word == col for word in identifier_list_plus)]]
-        filtered_data["protein_ID_matrix"] = data_dict["protein_ID_matrix"][[
-            col for col in data_dict["protein_ID_matrix"].columns if any(
-                word == col for word in identifier_list_plus)]]
-        filtered_data["peptide_ID_matrix"] = data_dict["peptide_ID_matrix"][[
-            col for col in data_dict["peptide_ID_matrix"].columns if any(
-                word == col for word in identifier_list_plus)]]
-        filtered_data["protein_ID_Summary"] = data_dict["protein_ID_Summary"][
-            data_dict["protein_ID_Summary"]["names"].isin(
-                run_id_list)]
-        filtered_data["peptide_ID_Summary"] = data_dict["peptide_ID_Summary"][
-            data_dict["peptide_ID_Summary"]["names"].isin(
-                run_id_list)]
-        return filtered_data
     
+# def filter_by_name(self,data_dict, runname_list):
+#         """_Filter the data_dict based on runname_list, only keep the columns
+#         of the data_dict that are in the runname_list_
+#         Args:
+
+#         Returns:
+#             _type_: _description_
+#         """
+
+#         # make dict for each runname, no Symbol/sequence
+#         nameDict_channels = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Channel Identifier"]))
+
+#         nameDict_runs = dict(zip(data_dict["run_metadata"]["Run Names"],data_dict["run_metadata"]["Run Identifier"]))
+        
+#         identifier_list = []
+        
+#         identifier_list_plus = []
+
+#         run_id_list = []
+
+#         if "Annotated Sequence" in runname_list:
+#             runname_list.remove("Annotated Sequence")
+#         if "Symbol" in runname_list:
+#             runname_list.remove("Symbol")
+#         for eachName in runname_list:
+#             run_id_list.append(nameDict_runs[eachName])
+#         for eachName in runname_list:
+#             identifier_list.append(nameDict_channels[eachName])
+#         for eachName in runname_list:
+#             identifier_list_plus.append(nameDict_channels[eachName])
+
+
+#         filtered_data = {}
+#     # filtered_data["meta"] = data_dict["meta"]
+#         runname_list.extend(["Annotated Sequence","Symbol"])
+#         identifier_list_plus.extend(["Annotated Sequence","Symbol"])
+
+#         #filtered_data["run_metadata"] = [item for item in data_dict[
+#         #   "run_metadata"] if item in runname_list]
+        
+#         filtered_data["run_metadata"] = data_dict["run_metadata"][
+#             data_dict["run_metadata"]["Run Names"].isin(
+#                 runname_list)]  
+#         filtered_data["protein_abundance"] = data_dict["protein_abundance"][[
+#             col for col in data_dict["protein_abundance"].columns if any(
+#                 word == col for word in identifier_list_plus)]]
+#         filtered_data["peptide_abundance"] = data_dict["peptide_abundance"][[
+#             col for col in data_dict["peptide_abundance"].columns if any(
+#                 word == col for word in identifier_list_plus)]]
+#         filtered_data["protein_other_info"] = data_dict["protein_other_info"][[
+#             col for col in data_dict["protein_other_info"].columns if any(
+#                 word == col for word in identifier_list_plus)]]
+#         filtered_data["peptide_other_info"] = data_dict["peptide_other_info"][[
+#             col for col in data_dict["peptide_other_info"].columns if any(
+#                 word == col for word in identifier_list_plus)]]
+#         filtered_data["protein_ID_matrix"] = data_dict["protein_ID_matrix"][[
+#             col for col in data_dict["protein_ID_matrix"].columns if any(
+#                 word == col for word in identifier_list_plus)]]
+#         filtered_data["peptide_ID_matrix"] = data_dict["peptide_ID_matrix"][[
+#             col for col in data_dict["peptide_ID_matrix"].columns if any(
+#                 word == col for word in identifier_list_plus)]]
+#         filtered_data["protein_ID_Summary"] = data_dict["protein_ID_Summary"][
+#             data_dict["protein_ID_Summary"]["names"].isin(
+#                 run_id_list)]
+#         filtered_data["peptide_ID_Summary"] = data_dict["peptide_ID_Summary"][
+#             data_dict["peptide_ID_Summary"]["names"].isin(
+#                 run_id_list)]
+#         return filtered_data
+
+    def filter_by_id(self,data_dict, run_id_list):
+            """_Filter the data_dict based on runname_list, only keep the columns
+            of the data_dict that are in the runname_list_
+            Args:
+
+            Returns:
+                _type_: _description_
+            """
+
+            # make dict for each runname, no Symbol/sequence
+            nameDict_channels = dict(zip(data_dict["run_metadata"]["Run Identifier"],data_dict["run_metadata"]["Channel Identifier"]))
+            
+            identifier_list = []
+            
+            identifier_list_plus = []
+
+
+            if "Annotated Sequence" in run_id_list:
+                run_id_list.remove("Annotated Sequence")
+            if "Symbol" in run_id_list:
+                run_id_list.remove("Symbol")
+            for eachName in run_id_list:
+                identifier_list.append(nameDict_channels[eachName])
+            for eachName in run_id_list:
+                identifier_list_plus.append(nameDict_channels[eachName])
+
+
+            filtered_data = {}
+        # filtered_data["meta"] = data_dict["meta"]
+            run_id_list.extend(["Annotated Sequence","Symbol"])
+            identifier_list_plus.extend(["Annotated Sequence","Symbol"])
+
+            #filtered_data["run_metadata"] = [item for item in data_dict[
+            #   "run_metadata"] if item in runname_list]
+            
+            filtered_data["run_metadata"] = data_dict["run_metadata"][
+                data_dict["run_metadata"]["Run Identifier"].isin(
+                    run_id_list)]  
+            filtered_data["protein_abundance"] = data_dict["protein_abundance"][[
+                col for col in data_dict["protein_abundance"].columns if any(
+                    word == col for word in identifier_list_plus)]]
+            filtered_data["peptide_abundance"] = data_dict["peptide_abundance"][[
+                col for col in data_dict["peptide_abundance"].columns if any(
+                    word == col for word in identifier_list_plus)]]
+            filtered_data["protein_other_info"] = data_dict["protein_other_info"][[
+                col for col in data_dict["protein_other_info"].columns if any(
+                    word == col for word in identifier_list_plus)]]
+            filtered_data["peptide_other_info"] = data_dict["peptide_other_info"][[
+                col for col in data_dict["peptide_other_info"].columns if any(
+                    word == col for word in identifier_list_plus)]]
+            filtered_data["protein_ID_matrix"] = data_dict["protein_ID_matrix"][[
+                col for col in data_dict["protein_ID_matrix"].columns if any(
+                    word == col for word in identifier_list_plus)]]
+            filtered_data["peptide_ID_matrix"] = data_dict["peptide_ID_matrix"][[
+                col for col in data_dict["peptide_ID_matrix"].columns if any(
+                    word == col for word in identifier_list_plus)]]
+            filtered_data["protein_ID_Summary"] = data_dict["protein_ID_Summary"][
+                data_dict["protein_ID_Summary"]["names"].isin(
+                    run_id_list)]
+            filtered_data["peptide_ID_Summary"] = data_dict["peptide_ID_Summary"][
+                data_dict["peptide_ID_Summary"]["names"].isin(
+                    run_id_list)]
+            return filtered_data
+        

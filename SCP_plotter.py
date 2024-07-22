@@ -62,11 +62,12 @@ class SCP_plotter:
         i = 1
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
-
-            group_dict[eachGroup] = self.processor.filter_by_name(
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] = self.processor.filter_by_id(
                 data_object,
-                runname_sublist)  # prevent the list from being changed
+                run_ids)  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1
 
@@ -540,11 +541,12 @@ class SCP_plotter:
         i = 1
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
 
-            group_dict[eachGroup] =  self.processor.filter_by_name(
+            group_dict[eachGroup] =  self.processor.filter_by_id(
                 data_object,
-                runname_sublist)  # prevent the list from being changed
+                run_ids)  # prevent the list from being changed
             runname_list.append(runname_sublist)
             # print(runname_sublist)
             i += 1
@@ -923,11 +925,13 @@ class SCP_plotter:
         i = 1
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
 
-            group_dict[eachGroup] =  self.processor.filter_by_name(
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] =  self.processor.filter_by_id(
                 data_object,
-                list(runname_sublist))  # prevent the list from being changed
+                list(run_ids))  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1
 
@@ -1199,10 +1203,13 @@ class SCP_plotter:
         i = 0
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = self.processor.filter_by_name(
+
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] = self.processor.filter_by_id(
                 data_object,
-                list(runname_sublist))  # prevent the list from being changed
+                list(run_ids))  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1
         
@@ -1422,10 +1429,13 @@ class SCP_plotter:
         i = 0
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = self.processor.filter_by_name(
+
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] = self.processor.filter_by_id(
                 data_object,
-                list(runname_sublist))  # prevent the list from being changed
+                list(run_ids))  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1
         data_set = []
@@ -1634,8 +1644,10 @@ class SCP_plotter:
 
         # Ranked Proteins
         ref_name = plot_options["reference_group"]
-        ref_columns = saved_settings[ref_name]["records"]
-        ref_data = self.processor.filter_by_name(data_object,list(ref_columns))["protein_abundance"]
+
+        run_ids = saved_settings[ref_name]["records"]
+        
+        ref_data = self.processor.filter_by_id(data_object,list(run_ids))["protein_abundance"]
         ref_data["average_intensity"] = ref_data.mean(axis=1)
         ref_data = ref_data.sort_values(by="average_intensity",ascending = False).drop_duplicates(subset='Symbol', keep='first').dropna().reset_index()
         ranked_proteins = pd.DataFrame({"Symbol": ref_data["Symbol"],
@@ -1653,11 +1665,12 @@ class SCP_plotter:
         i = 0
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
-
-            group_dict[eachGroup] = self.processor.filter_by_name(
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] = self.processor.filter_by_id(
                 data_object,
-                list(runname_sublist))  # prevent the list from being changed
+                list(run_ids))  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1
         # create a dictionary to store the intensity data
@@ -1780,11 +1793,12 @@ class SCP_plotter:
         i = 0
         runname_list = []  # contain list of run names list for each groups
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
-
-            group_dict[eachGroup] = self.processor.filter_by_name(
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] = self.processor.filter_by_id(
                 data_object,
-                list(runname_sublist))  # prevent the list from being changed
+                list(run_ids))  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1
         # create a dictionary to store the intensity data
@@ -2041,10 +2055,12 @@ class SCP_plotter:
         runname_list = []  # this will contain list of run names list for each groups
         #print(saved_settings)
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = self.processor.filter_by_name(
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] = self.processor.filter_by_id(
                 data_object,
-                list(runname_sublist))  # prevent the list from being changed
+                list(run_ids))  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1       
             #print((runname_sublist))
@@ -2217,10 +2233,12 @@ class SCP_plotter:
         runname_list = []  # this will contain list of run names list for each groups
         #print(saved_settings)
         for eachGroup in group_names:
-            runname_sublist = saved_settings[eachGroup]["records"]
-            group_dict[eachGroup] = self.processor.filter_by_name(
+            run_ids = saved_settings[eachGroup]["records"]
+            runname_sublist = data_object["run_metadata"].loc[data_object["run_metadata"]["Run Identifier"].isin(run_ids)]["Run Names"].to_list()
+            
+            group_dict[eachGroup] = self.processor.filter_by_id(
                 data_object,
-                list(runname_sublist))  # prevent the list from being changed
+                list(run_ids))  # prevent the list from being changed
             runname_list.append(runname_sublist)
             i += 1       
             #print((runname_sublist))
