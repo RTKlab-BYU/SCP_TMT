@@ -3,9 +3,9 @@ from sklearn.decomposition import PCA
 from sklearn.impute import KNNImputer
 import numpy as np
 import pandas as pd
-
+import re
+import numpy as np
 from pandas.api.types import is_numeric_dtype
-
 from scipy.stats import ttest_ind_from_stats
 import json
 
@@ -540,6 +540,79 @@ class SCP_processor:
                     
         return final_data_object
 
+    def sort_runs(self, data_object, settings_file):
+        
+        settings_table = pd.read_table(settings_file,sep="\t")
+        saved_settings = settings_table.set_index("Conditions").to_dict(orient="index")
+        #any run with any of the filter_out items will not be used.
+
+        # display(data_obj["protein_abundance"][pd.isna(data_obj["protein_abundance"])])
+        # display(data_obj["protein_abundance"])
+        # display(data_obj["protein_ID_Summary"])
+        for eachGroup in saved_settings:
+            i = 0
+            saved_settings[eachGroup]["records"] = []
+            filterOutType = type(saved_settings[eachGroup]["filter_out"])
+            if filterOutType == str or filterOutType == int or filterOutType == float and not pd.isna(saved_settings[eachGroup]["filter_out"]):
+                filterOut = str.split(saved_settings[eachGroup]["filter_out"],sep = ",")
+            else:
+                filterOut = ["M@di"]
+            if len(str.split(str(saved_settings[eachGroup]["filter_in"]),sep = "@")) > 1: #multiple files, only some have the runs for this group
+                user_list = {}
+                #add all runs from all analyses to be probed
+                for each_fileID in str.split(str(saved_settings[eachGroup]["filter_in"]),sep = "@")[1:]:
+                    for eachIdentifier in data_object["run_metadata"]["Run Identifier"].drop_duplicates():    
+                        currentRun = data_object["run_metadata"][data_object["run_metadata"]["Run Identifier"] == eachIdentifier]["Run Names"] 
+                        if currentRun.size != 0:
+                            if each_fileID == str.split(eachIdentifier,sep="-")[0] and list(currentRun)[0] not in user_list:
+                                user_list[eachIdentifier] = list(currentRun)[0]
+                        else:
+                            print(currentRun)
+                #filter for runs that relate to this gorup within those analyses
+                # print(user_list)
+                for run_id in user_list.keys():
+                    run_name = user_list[run_id]
+                    filter_ins = str.split(str.split(str(saved_settings[eachGroup]["filter_in"]),sep = "@")[0],",")
+                    matches_all = True
+                    for filter_in in filter_ins:
+                        if bool(re.search(filter_in,run_name)) and (not any(item in run_name for item in filterOut)) and (run_name not in saved_settings[eachGroup]["records"]):
+                            pass
+                        else:
+                            matches_all = False
+                            break
+                    if matches_all:
+                        saved_settings[eachGroup]["records"].append(list(data_object["run_metadata"][data_object["run_metadata"]["Run Identifier"] == run_id]["Run Identifier"])[0]) 
+                    else:
+                        # print(filter_ins)
+                        pass    
+                    
+            elif len(str.split(str(saved_settings[eachGroup]["filter_in"]),sep = "@")) == 1: #across all files or maybe there is only one
+                    for run_name in data_object["run_metadata"]["Run Names"]:
+                        filter_ins = str.split(str.split(str(saved_settings[eachGroup]["filter_in"]),sep = "@")[0],",")
+                        matches_all = True
+                        for filter_in in filter_ins:
+                            if bool(re.search(filter_in,run_name)) and (not any(item in run_name for item in filterOut)) and (run_name not in saved_settings[eachGroup]["records"]):
+                                pass
+                            else:
+                                matches_all = False
+                                break
+                        if matches_all:
+                            saved_settings[eachGroup]["records"].append(list(data_object["run_metadata"][data_object["run_metadata"]["Run Identifier"] == run_id]["Run Identifier"])[0]) 
+                        else:
+                            # print(filter_ins)    
+                            pass
+                        
+        #add the order of each column
+        ignore_columns = ["filter_in","filter_out"]
+        category_columns = [x for x in settings_table.columns.to_list() if x not in ignore_columns]
+
+
+
+        for eachCol in category_columns:
+            saved_settings["Order@"+eachCol] = settings_table[eachCol].drop_duplicates().to_list()
+        
+        return saved_settings
+
     def calculate_missing_values_MS2(self,data_object,
                                 missing_value_thresh=33,
                                 is_protein=True,
@@ -877,12 +950,12 @@ class SCP_processor:
 
 
         x = abundance_data.select_dtypes(include=['float', 'int'])
-        print(abundance_data)
+        # print(abundance_data)
 
         imputer = KNNImputer(n_neighbors=k)
         x_imputed = imputer.fit_transform(x)
         x_imputed = pd.DataFrame(x_imputed, columns=x.columns)
-        print(x_imputed.columns)
+        # print(x_imputed.columns)
 
         # Replace the original values in abundance_data with imputed values
         x_imputed.insert(loc=0,column=name,value=names)
