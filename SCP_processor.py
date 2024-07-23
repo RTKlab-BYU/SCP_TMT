@@ -362,7 +362,7 @@ class SCP_processor:
             new_dict["Sequence"] = "Annotated Sequence"
             for item in [pep_ID,prot_ID,prot_other_info,pep_other_info]:
                 # Generate a new column name mapping using the function
-                fileid_mapping = self.generate_column_from_name_mapping(item.columns,new_dict)
+                fileid_mapping = self.generate_column_to_name_mapping(item.columns,new_dict)
                 item.rename(columns = fileid_mapping,inplace=True)
 
             #change column names to file/run names to our fileID
@@ -378,7 +378,7 @@ class SCP_processor:
                         new_dict[eachcol]=old_dict[" ".join(eachcol.split(" ")[3:])] +"-"+eachcol.split(" ")[2]
                         max_channel = max(max_channel,int(eachcol.split(" ")[2]))
                     i = i + 1
-                fileid_mapping = self.generate_column_from_name_mapping(item.columns,new_dict)
+                fileid_mapping = self.generate_column_to_name_mapping(item.columns,new_dict)
 
                 item.rename(columns = fileid_mapping,inplace=True)
                 # print(item.columns)
@@ -398,6 +398,8 @@ class SCP_processor:
             for column in run_name_list["Run Identifier"].drop_duplicates():
                 if column in pep_ID.columns:
                     for channel in run_name_list.loc[run_name_list["Run Identifier"]==column,"Channel Identifier"].to_list():
+                        print(column)
+                        print(pep_ID[column])
                         pep_ID[channel] = pep_ID[column]
                         pep_ID[channel] = pep_ID[channel].replace(to_replace=replacements)
                         pep_abundance.loc[pd.isna(pep_ID[channel]),channel] = np.NaN
