@@ -381,6 +381,7 @@ class SCP_processor:
                 fileid_mapping = self.generate_column_to_name_mapping(item.columns,new_dict)
 
                 item.rename(columns = fileid_mapping,inplace=True)
+                item=item.replace(0,np.NaN)
                 # print(item.columns)
             #use generate_column_to_name_mapping function because we don't want partial matches
             # replace "High" to MS2 "Peak Found" to MBR, the rest become np.NaN
@@ -398,8 +399,6 @@ class SCP_processor:
             for column in run_name_list["Run Identifier"].drop_duplicates():
                 if column in pep_ID.columns:
                     for channel in run_name_list.loc[run_name_list["Run Identifier"]==column,"Channel Identifier"].to_list():
-                        print(column)
-                        print(pep_ID[column])
                         pep_ID[channel] = pep_ID[column]
                         pep_ID[channel] = pep_ID[channel].replace(to_replace=replacements)
                         pep_abundance.loc[pd.isna(pep_ID[channel]),channel] = np.NaN
@@ -897,10 +896,11 @@ class SCP_processor:
             CV=abs(abundance_data.loc[:, ~abundance_data.columns.str.contains(name)].std(
                 axis=1, skipna=True) / abundance_data.loc[
                 :, ~abundance_data.columns.str.contains(name)].mean(
-                axis=1, skipna=True) * 100))
+                axis=1, skipna=True) * 100),
+            count=abundance_data.loc[:, ~abundance_data.columns.str.contains(name)].count(axis=1))
 
         abundance_data = abundance_data.loc[:, [
-                name, "intensity", "stdev", "CV"]]
+                name, "intensity", "stdev", "CV","count"]]
         
         return abundance_data
 
