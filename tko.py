@@ -2,8 +2,8 @@ import pandas as pd
 import plotly.express as px
 important_proteins = ["MET6","HIS4","URA2"]
 # file_name = "peptides 2.txt"
-file_name = "peptides 2.txt"
-run_filter = "Quan"
+file_name = "input/tko_noMBR/proteinGroups.txt"
+run_filter = "45K"
 # run_filter = "id_"
 
 
@@ -15,6 +15,7 @@ run_filter = "Quan"
 data = pd.read_table(file_name,sep="\t")
 data = data[data["Gene names"].isin(important_proteins)]
 prot_abundance = data.filter(regex='Reporter intensity |Gene names')
+print(prot_abundance.columns)
 prot_abundance = prot_abundance.filter(regex=run_filter+"|Gene names")
 prot_abundance = prot_abundance.loc[:,~prot_abundance.columns.str.contains("Reporter intensity corrected ")]
 prot_abundance = prot_abundance.loc[:,~prot_abundance.columns.str.contains("Reporter intensity count ")]
