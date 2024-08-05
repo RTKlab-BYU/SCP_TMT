@@ -1186,7 +1186,7 @@ class SCP_plotter:
         return fig, CSV_link, SVG_link
 
 
-    def inclusion_venn_plots(self, data_object, plot_options, saved_settings, username=None):
+    def inclusion_venn_plots(self, data_object, plot_options, saved_settings, username=None,miss_val_thresh=33):
         """_Prepare data for creating ID veens plots (up to three groups)_
         """
         group_names = []
@@ -1228,7 +1228,7 @@ class SCP_plotter:
         for eachGroup in group_names:
             
             current_condition_data = self.processor.filter_by_missing_values_MS2(
-                group_dict[eachGroup], is_protein=is_protein, missing_value_thresh=99)
+                group_dict[eachGroup], is_protein=is_protein, missing_value_thresh=miss_val_thresh)
 
             data_set.append(
                 set(current_condition_data[matrix_name][molecule_name].unique()))
@@ -1412,7 +1412,7 @@ class SCP_plotter:
 
         return fig
     
-    def venns_plots(self, data_object, plot_options, saved_settings, username=None):
+    def venns_plots(self, data_object, plot_options, saved_settings, username=None,miss_val_thresh=33):
         """_Prepare data for creating ID veens plots (up to three groups)_
         """
         group_names = []
